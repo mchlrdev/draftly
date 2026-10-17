@@ -137,7 +137,11 @@ export function OperatorShell({
                     <SidebarMenuItem key={project.slug}>
                       <SidebarMenuButton
                         icon={icons.folder}
-                        isActive={params.project === project.slug}
+                        // Only the leaf row is lit: a lit project above a lit
+                        // draft stacks two fills with different radii.
+                        isActive={
+                          params.project === project.slug && !params.draft
+                        }
                         aria-expanded={open}
                         onClick={() =>
                           setToggled((t) => ({ ...t, [project.slug]: !open }))
