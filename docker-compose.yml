@@ -1,0 +1,48 @@
+name: draftly
+
+services:
+  draftly:
+    build: .
+    image: draftly:local
+    restart: unless-stopped
+
+    # Optional local overrides. Compose reads .env for ${...} interpolation too.
+    env_file:
+      - path: .env
+        required: false
+
+    environment:
+      # ADMIN_PASSWORD is required in production. Compose refuses to start without it.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in the shell or .env}
+      # Public URL the reviewer sees (used for links). Set to https://draftly.mchlr.de on the VPS.
+      DRAFTLY_PUBLIC_ORIGIN: ${DRAFTLY_PUBLIC_ORIGIN:-http://localhost:3000}
+
+    volumes:
+      # SQLite database. Survives `docker compose down` and container recreates.
+      - draftly-data:/data
+
+    ports:
+      # Loopback only: Docker bypasses ufw, so 0.0.0.0 would expose plain HTTP.
+      # On the VPS, Traefik is the public entry point.
+      - "127.0.0.1:${DRAFTLY_PORT:-3000}:3000"
+
+    # Traefik labels. Set TRAEFIK_ENABLE=false in .env for a local run without Traefik.
+    # The certresolver name must match the one in the VPS Traefik static config.
+    labels:
+      traefik.enable: ${TRAEFIK_ENABLE:-true}
+      traefik.http.routers.draftly.rule: Host(`draftly.mchlr.de`)
+      traefik.http.routers.draftly.entrypoints: websecure
+      traefik.http.routers.draftly.tls: "true"
+      traefik.http.routers.draftly.tls.certresolver: letsencrypt
+      traefik.http.services.draftly.loadbalancer.server.port: "3000"
+    # If Traefik reaches this container over a shared network, attach it here:
+    # networks:
+    #   - default
+    #   - traefik
+
+volumes:
+  draftly-data:
+
+# networks:
+#   traefik:
+#     external: true
