@@ -1,14 +1,14 @@
-"use client";
+"use client"
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react"
 
-const subscribe = () => () => {};
+const subscribe = () => () => {}
 
 /** `window.location.origin` in the browser, "" during the server render. */
 export function useOrigin(): string {
   return useSyncExternalStore(
     subscribe,
     () => window.location.origin,
-    () => "",
-  );
+    () => ""
+  )
 }

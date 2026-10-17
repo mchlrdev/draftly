@@ -1,6 +1,12 @@
 import "server-only"
 
-import { createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto"
+import {
+  createHmac,
+  randomBytes,
+  randomInt,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto"
 import { db } from "./db"
 
 /** URL-safe random id. */
@@ -35,7 +41,12 @@ export function verifyPassword(password: string, stored: string): boolean {
   const [scheme, saltB64, hashB64] = stored.split("$")
   if (scheme !== "scrypt" || !saltB64 || !hashB64) return false
   const expected = Buffer.from(hashB64, "base64url")
-  const actual = scryptSync(password, Buffer.from(saltB64, "base64url"), expected.length, { N: SCRYPT_N })
+  const actual = scryptSync(
+    password,
+    Buffer.from(saltB64, "base64url"),
+    expected.length,
+    { N: SCRYPT_N }
+  )
   return timingSafeEqual(actual, expected)
 }
 
@@ -49,11 +60,19 @@ export function safeEqual(a: string, b: string): boolean {
 /** Random server secret, created once and kept in the meta table. */
 export function serverSecret(): string {
   const conn = db()
-  const row = conn.prepare("SELECT value FROM meta WHERE key = 'secret'").get() as { value: string } | undefined
+  const row = conn
+    .prepare("SELECT value FROM meta WHERE key = 'secret'")
+    .get() as { value: string } | undefined
   if (row) return row.value
   const value = randomBytes(32).toString("base64url")
-  conn.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('secret', ?)").run(value)
-  return (conn.prepare("SELECT value FROM meta WHERE key = 'secret'").get() as { value: string }).value
+  conn
+    .prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('secret', ?)")
+    .run(value)
+  return (
+    conn.prepare("SELECT value FROM meta WHERE key = 'secret'").get() as {
+      value: string
+    }
+  ).value
 }
 
 export function hmac(data: string): string {

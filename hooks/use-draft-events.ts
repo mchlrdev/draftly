@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import { useEffect, useRef } from "react";
-import type { DraftEvent } from "@/lib/api-types";
-import type { DraftAction } from "@/hooks/use-draft-state";
-import { ApiError, reviewerApi, type DraftRef } from "@/lib/reviewer/api";
+import { useEffect, useRef } from "react"
+import type { DraftEvent } from "@/lib/api-types"
+import type { DraftAction } from "@/hooks/use-draft-state"
+import { ApiError, reviewerApi, type DraftRef } from "@/lib/reviewer/api"
 
 // Live comments: one EventSource per open draft. Every (re)connect reloads
 // the full snapshot first, so events missed while the stream was down (or
@@ -19,99 +19,105 @@ const EVENT_TYPES: DraftEvent["type"][] = [
   "comment.created",
   "comment.updated",
   "comment.deleted",
-];
+]
 
-const MAX_BACKOFF_MS = 15_000;
+const MAX_BACKOFF_MS = 15_000
 
 export function useDraftEvents(
   ref: DraftRef,
   dispatch: (action: DraftAction) => void,
-  onLocked: () => void,
+  onLocked: () => void
 ) {
-  const { project, draft } = ref;
+  const { project, draft } = ref
   // Callbacks change identity on every render; the stream must not.
-  const dispatchRef = useRef(dispatch);
-  const onLockedRef = useRef(onLocked);
+  const dispatchRef = useRef(dispatch)
+  const onLockedRef = useRef(onLocked)
   useEffect(() => {
-    dispatchRef.current = dispatch;
-    onLockedRef.current = onLocked;
-  });
+    dispatchRef.current = dispatch
+    onLockedRef.current = onLocked
+  })
 
   useEffect(() => {
-    let source: EventSource | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    let attempt = 0;
-    let stopped = false;
-    let resync = 0;
+    let source: EventSource | null = null
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let attempt = 0
+    let stopped = false
+    let resync = 0
     // Events that arrive while a snapshot reload is in flight. The snapshot may
     // predate them, so they are re-applied on top of it (upserts are idempotent).
-    let buffered: DraftEvent[] | null = null;
+    let buffered: DraftEvent[] | null = null
 
-    const apply = (event: DraftEvent) => dispatchRef.current({ type: "event", event });
+    const apply = (event: DraftEvent) =>
+      dispatchRef.current({ type: "event", event })
 
     const reload = async () => {
-      const id = ++resync;
-      buffered ??= [];
+      const id = ++resync
+      buffered ??= []
       try {
-        const snapshot = await reviewerApi.snapshot({ project, draft });
-        if (stopped || id !== resync) return;
-        dispatchRef.current({ type: "snapshot", snapshot });
-        buffered?.forEach(apply);
-        buffered = null;
+        const snapshot = await reviewerApi.snapshot({ project, draft })
+        if (stopped || id !== resync) return
+        dispatchRef.current({ type: "snapshot", snapshot })
+        buffered?.forEach(apply)
+        buffered = null
       } catch (err) {
-        if (stopped || id !== resync) return;
-        buffered = null;
-        if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
-          stopped = true;
-          source?.close();
-          onLockedRef.current();
+        if (stopped || id !== resync) return
+        buffered = null
+        if (
+          err instanceof ApiError &&
+          (err.status === 401 || err.status === 404)
+        ) {
+          stopped = true
+          source?.close()
+          onLockedRef.current()
         }
       }
-    };
+    }
 
     const connect = () => {
-      if (stopped) return;
-      source = new EventSource(reviewerApi.eventsUrl({ project, draft }));
+      if (stopped) return
+      source = new EventSource(reviewerApi.eventsUrl({ project, draft }))
       source.onopen = () => {
-        attempt = 0;
-        void reload();
-      };
+        attempt = 0
+        void reload()
+      }
       for (const type of EVENT_TYPES) {
         source.addEventListener(type, (e) => {
           try {
-            const event = JSON.parse((e as MessageEvent<string>).data) as DraftEvent;
-            buffered?.push(event);
-            apply(event);
+            const event = JSON.parse(
+              (e as MessageEvent<string>).data
+            ) as DraftEvent
+            buffered?.push(event)
+            apply(event)
           } catch {
             // A malformed message is skipped; the next reconnect resyncs.
           }
-        });
+        })
       }
       source.onerror = () => {
         // The browser retries on its own while CONNECTING. A CLOSED stream
         // (non-200 answer) needs a fresh EventSource, with backoff, and a
         // reload tells us whether access itself is gone.
-        if (source?.readyState !== EventSource.CLOSED) return;
-        source.close();
-        void reload();
-        const delay = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt++);
-        retryTimer = setTimeout(connect, delay);
-      };
-    };
+        if (source?.readyState !== EventSource.CLOSED) return
+        source.close()
+        void reload()
+        const delay = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt++)
+        retryTimer = setTimeout(connect, delay)
+      }
+    }
 
-    connect();
+    connect()
 
     // A laptop waking up or a tab coming back: resync right away.
     const onVisible = () => {
-      if (document.visibilityState === "visible") void reload();
-    };
-    document.addEventListener("visibilitychange", onVisible);
+      if (document.visibilityState === "visible") void reload()
+    }
+    document.addEventListener("visibilitychange", onVisible)
 
     return () => {
-      stopped = true;
-      clearTimeout(retryTimer);
-      source?.close();
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [project, draft]);
+      stopped = true
+      clearTimeout(retryTimer)
+      source?.close()
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [project, draft])
 }

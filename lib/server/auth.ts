@@ -58,22 +58,25 @@ function tokenKey(token: string): string {
 
 export function createSession(): CookieSpec {
   const token = randomBytes(32).toString("base64url")
-  db().prepare("INSERT INTO sessions (token, created_at) VALUES (?, ?)").run(tokenKey(token), now())
+  db()
+    .prepare("INSERT INTO sessions (token, created_at) VALUES (?, ?)")
+    .run(tokenKey(token), now())
   return cookie(ADMIN_COOKIE, token)
 }
 
 export function destroySession(cookies: CookieReader): CookieSpec {
   const token = cookies.get(ADMIN_COOKIE)?.value
-  if (token) db().prepare("DELETE FROM sessions WHERE token = ?").run(tokenKey(token))
+  if (token)
+    db().prepare("DELETE FROM sessions WHERE token = ?").run(tokenKey(token))
   return cookie(ADMIN_COOKIE, "", 0)
 }
 
 export function isOperatorCookie(cookies: CookieReader): boolean {
   const token = cookies.get(ADMIN_COOKIE)?.value
   if (!token) return false
-  const row = db().prepare("SELECT created_at FROM sessions WHERE token = ?").get(tokenKey(token)) as
-    | { created_at: string }
-    | undefined
+  const row = db()
+    .prepare("SELECT created_at FROM sessions WHERE token = ?")
+    .get(tokenKey(token)) as { created_at: string } | undefined
   if (!row) return false
   if (Date.now() - Date.parse(row.created_at) > SESSION_DAYS * 86_400_000) {
     db().prepare("DELETE FROM sessions WHERE token = ?").run(tokenKey(token))
@@ -93,10 +96,18 @@ function draftProof(draftId: string, passwordHash: string): string {
 }
 
 export function draftCookie(draftId: string, passwordHash: string): CookieSpec {
-  return cookie(draftCookieName(draftId), draftProof(draftId, passwordHash), 60 * 60 * 24 * 90)
+  return cookie(
+    draftCookieName(draftId),
+    draftProof(draftId, passwordHash),
+    60 * 60 * 24 * 90
+  )
 }
 
-export function hasDraftCookie(cookies: CookieReader, draftId: string, passwordHash: string): boolean {
+export function hasDraftCookie(
+  cookies: CookieReader,
+  draftId: string,
+  passwordHash: string
+): boolean {
   const value = cookies.get(draftCookieName(draftId))?.value
   if (!value) return false
   return safeEqual(value, draftProof(draftId, passwordHash))

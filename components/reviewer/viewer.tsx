@@ -1,18 +1,25 @@
-"use client";
+"use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { DraftSnapshot, ThreadStatus } from "@/lib/api-types";
-import { numberedThreads, openCount, useDraftState } from "@/hooks/use-draft-state";
-import { useDraftEvents } from "@/hooks/use-draft-events";
-import { useAuthorKey, useIdentity } from "@/lib/reviewer/identity";
-import { useSize } from "@/lib/size-context";
-import { cn } from "@/lib/utils";
-import type { Point } from "@/lib/reviewer/geometry";
-import { ViewerProvider, type ViewerContextValue } from "@/components/reviewer/viewer-context";
-import { ViewerToolbar } from "@/components/reviewer/viewer-toolbar";
-import { CommentsSidebar } from "@/components/reviewer/comments-sidebar";
-import { PageStage } from "@/components/reviewer/page-stage";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import type { DraftSnapshot, ThreadStatus } from "@/lib/api-types"
+import {
+  numberedThreads,
+  openCount,
+  useDraftState,
+} from "@/hooks/use-draft-state"
+import { useDraftEvents } from "@/hooks/use-draft-events"
+import { useAuthorKey, useIdentity } from "@/lib/reviewer/identity"
+import { useSize } from "@/lib/size-context"
+import { cn } from "@/lib/utils"
+import type { Point } from "@/lib/reviewer/geometry"
+import {
+  ViewerProvider,
+  type ViewerContextValue,
+} from "@/components/reviewer/viewer-context"
+import { ViewerToolbar } from "@/components/reviewer/viewer-toolbar"
+import { CommentsSidebar } from "@/components/reviewer/comments-sidebar"
+import { PageStage } from "@/components/reviewer/page-stage"
 
 // The reviewer's viewer: toolbar, page stage, comments sidebar. Comment data
 // lives in one reducer (hooks/use-draft-state) fed by the server snapshot,
@@ -24,87 +31,101 @@ export function Viewer({
   initialSnapshot,
   initialPageId,
 }: {
-  project: string;
-  draft: string;
-  initialSnapshot: DraftSnapshot;
-  initialPageId?: string;
+  project: string
+  draft: string
+  initialSnapshot: DraftSnapshot
+  initialPageId?: string
 }) {
-  const router = useRouter();
-  const size = useSize();
-  const [state, dispatch] = useDraftState(initialSnapshot);
-  const identity = useIdentity();
-  const draftRef = useMemo(() => ({ project, draft }), [project, draft]);
+  const router = useRouter()
+  const size = useSize()
+  const [state, dispatch] = useDraftState(initialSnapshot)
+  const identity = useIdentity()
+  const draftRef = useMemo(() => ({ project, draft }), [project, draft])
 
-  useDraftEvents(draftRef, dispatch, () => router.refresh());
+  useDraftEvents(draftRef, dispatch, () => router.refresh())
 
-  const pages = state.draft.pages;
-  const [chosenPageId, setChosenPageId] = useState<string | undefined>(initialPageId);
-  const page = pages.find((p) => p.id === chosenPageId) ?? pages[0] ?? null;
+  const pages = state.draft.pages
+  const [chosenPageId, setChosenPageId] = useState<string | undefined>(
+    initialPageId
+  )
+  const page = pages.find((p) => p.id === chosenPageId) ?? pages[0] ?? null
 
-  const [filter, setFilter] = useState<ThreadStatus>("open");
-  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
-  const [composer, setComposer] = useState<Point | null>(null);
-  const composerHasText = useRef(false);
+  const [filter, setFilter] = useState<ThreadStatus>("open")
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null)
+  const [composer, setComposer] = useState<Point | null>(null)
+  const composerHasText = useRef(false)
 
-  const numbered = useMemo(() => (page ? numberedThreads(state, page.id) : []), [state, page]);
-  const rows = numbered.filter((n) => n.thread.status === filter);
-  const openThread = numbered.find((n) => n.thread.id === openThreadId) ?? null;
-  const pins = numbered.filter((n) => n.thread.status === filter || n.thread.id === openThreadId);
+  const numbered = useMemo(
+    () => (page ? numberedThreads(state, page.id) : []),
+    [state, page]
+  )
+  const rows = numbered.filter((n) => n.thread.status === filter)
+  const openThread = numbered.find((n) => n.thread.id === openThreadId) ?? null
+  const pins = numbered.filter(
+    (n) => n.thread.status === filter || n.thread.id === openThreadId
+  )
 
-  const clientId = identity?.clientId ?? null;
-  const authorKey = useAuthorKey(clientId);
-  const authorName = identity?.name || (state.operator ? "Operator" : "");
+  const clientId = identity?.clientId ?? null
+  const authorKey = useAuthorKey(clientId)
+  const authorName = identity?.name || (state.operator ? "Operator" : "")
   const viewerContext = useMemo<ViewerContextValue>(
-    () => ({ draftRef, dispatch, operator: state.operator, clientId, authorKey, authorName }),
-    [draftRef, dispatch, state.operator, clientId, authorKey, authorName],
-  );
+    () => ({
+      draftRef,
+      dispatch,
+      operator: state.operator,
+      clientId,
+      authorKey,
+      authorName,
+    }),
+    [draftRef, dispatch, state.operator, clientId, authorKey, authorName]
+  )
 
   const closeComposer = useCallback(() => {
-    composerHasText.current = false;
-    setComposer(null);
-  }, []);
+    composerHasText.current = false
+    setComposer(null)
+  }, [])
 
   const changePage = useCallback(
     (id: string) => {
-      setChosenPageId(id);
-      setOpenThreadId(null);
-      closeComposer();
-      const url = new URL(window.location.href);
-      url.searchParams.set("page", id);
-      window.history.replaceState(null, "", url);
+      setChosenPageId(id)
+      setOpenThreadId(null)
+      closeComposer()
+      const url = new URL(window.location.href)
+      url.searchParams.set("page", id)
+      window.history.replaceState(null, "", url)
     },
-    [closeComposer],
-  );
+    [closeComposer]
+  )
 
   function place(point: Point) {
     // A click beside an open popover only closes it.
     if (openThreadId) {
-      setOpenThreadId(null);
-      return;
+      setOpenThreadId(null)
+      return
     }
     // A started comment is never thrown away by a stray click.
-    if (composer && composerHasText.current) return;
-    setFilter("open");
-    setComposer(point);
+    if (composer && composerHasText.current) return
+    setFilter("open")
+    setComposer(point)
   }
 
   function openThreadById(id: string) {
-    if (composer && composerHasText.current) return;
-    closeComposer();
-    setOpenThreadId(id);
+    if (composer && composerHasText.current) return
+    closeComposer()
+    setOpenThreadId(id)
   }
 
   // Esc closes the composer or the open thread. Menus and dialogs inside
   // handle their own Esc first and mark it handled.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (composer) closeComposer();
-      else if (openThreadId) setOpenThreadId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [composer, openThreadId, closeComposer]);
+      if (e.key !== "Escape" || e.defaultPrevented) return
+      if (composer) closeComposer()
+      else if (openThreadId) setOpenThreadId(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [composer, openThreadId, closeComposer])
 
   return (
     <ViewerProvider value={viewerContext}>
@@ -132,7 +153,7 @@ export function Viewer({
               onComposerDone={() => closeComposer()}
               onComposerCancel={closeComposer}
               onComposerDraftChange={(hasText) => {
-                composerHasText.current = hasText;
+                composerHasText.current = hasText
               }}
             />
           ) : (
@@ -151,15 +172,18 @@ export function Viewer({
             pageHasThreads={numbered.length > 0}
             filter={filter}
             onFilterChange={(f) => {
-              setFilter(f);
-              if (openThread && openThread.thread.status !== f) setOpenThreadId(null);
+              setFilter(f)
+              if (openThread && openThread.thread.status !== f)
+                setOpenThreadId(null)
             }}
             selectedId={openThreadId}
-            onSelect={(id) => (openThreadId === id ? setOpenThreadId(null) : openThreadById(id))}
+            onSelect={(id) =>
+              openThreadId === id ? setOpenThreadId(null) : openThreadById(id)
+            }
             composing={composer !== null}
           />
         </div>
       </div>
     </ViewerProvider>
-  );
+  )
 }

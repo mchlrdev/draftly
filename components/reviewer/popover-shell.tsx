@@ -1,20 +1,25 @@
-"use client";
+"use client"
 
-import { forwardRef, type ReactNode } from "react";
-import { motion } from "motion/react";
-import { Elevated } from "@/lib/elevated";
-import { spring } from "@/lib/springs";
-import { cn } from "@/lib/utils";
-import type { PopoverPlacement } from "@/lib/reviewer/geometry";
+import { forwardRef, type ReactNode } from "react"
+import { motion } from "motion/react"
+import { Elevated } from "@/lib/elevated"
+import { spring } from "@/lib/springs"
+import { cn } from "@/lib/utils"
+import type { PopoverPlacement } from "@/lib/reviewer/geometry"
 
-export const POPOVER_WIDTH = 320;
+export const POPOVER_WIDTH = 320
 
 // The card that floats beside a pin (Paper: 320 wide, 16px radius, 16/12
 // padding). It lives in the stage's unscaled layer so its text never
 // shrinks with a scaled-down page; only its position follows the pin.
 export const PopoverShell = forwardRef<
   HTMLDivElement,
-  { placement: PopoverPlacement; children: ReactNode; className?: string; label: string }
+  {
+    placement: PopoverPlacement
+    children: ReactNode
+    className?: string
+    label: string
+  }
 >(function PopoverShell({ placement, children, className, label }, ref) {
   return (
     <motion.div
@@ -36,9 +41,13 @@ export const PopoverShell = forwardRef<
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <Elevated offset={2} shadowLevel={3} className={cn("flex flex-col rounded-2xl px-4 pt-4 pb-3", className)}>
+      <Elevated
+        offset={2}
+        shadowLevel={3}
+        className={cn("flex flex-col rounded-2xl px-4 pt-4 pb-3", className)}
+      >
         {children}
       </Elevated>
     </motion.div>
-  );
-});
+  )
+})

@@ -72,7 +72,9 @@ export function db(): DatabaseSync {
     const dir = resolve(process.env.DRAFTLY_DATA_DIR ?? "./data")
     mkdirSync(dir, { recursive: true })
     const conn = new DatabaseSync(join(dir, "draftly.sqlite"))
-    conn.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;")
+    conn.exec(
+      "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;"
+    )
     conn.exec(SCHEMA)
     g.__draftlyDb = conn
   }

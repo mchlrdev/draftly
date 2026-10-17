@@ -13,10 +13,14 @@ describe("operator session", () => {
     const c = client()
     const res = await c.post("/api/admin/login", { password: "test-secret" })
     expect(res.status).toBe(204)
-    const cookie = res.headers.getSetCookie().find((l) => l.startsWith("draftly_admin="))
+    const cookie = res.headers
+      .getSetCookie()
+      .find((l) => l.startsWith("draftly_admin="))
     expect(cookie).toMatch(/HttpOnly/i)
     expect(cookie).toMatch(/SameSite=Lax/i)
-    expect(await (await c.get("/api/admin/session")).json()).toEqual({ operator: true })
+    expect(await (await c.get("/api/admin/session")).json()).toEqual({
+      operator: true,
+    })
   })
 
   it("rejects a wrong password with a German error and no session", async () => {
@@ -25,7 +29,9 @@ describe("operator session", () => {
     expect(res.status).toBe(401)
     expect((await res.json()).error).toEqual(expect.any(String))
     expect(c.jar.has("draftly_admin")).toBe(false)
-    expect(await (await c.get("/api/admin/session")).json()).toEqual({ operator: false })
+    expect(await (await c.get("/api/admin/session")).json()).toEqual({
+      operator: false,
+    })
   })
 
   it("requires the session for operator endpoints", async () => {
@@ -52,11 +58,17 @@ describe("operator session", () => {
   it("rate-limits password guesses per IP", async () => {
     const c = client()
     const statuses: number[] = []
-    for (let i = 0; i < 11; i++) statuses.push((await c.post("/api/admin/login", { password: "x" })).status)
+    for (let i = 0; i < 11; i++)
+      statuses.push(
+        (await c.post("/api/admin/login", { password: "x" })).status
+      )
     expect(statuses.slice(0, 10).every((s) => s === 401)).toBe(true)
     expect(statuses[10]).toBe(429)
     // A different IP is unaffected.
-    expect((await client().post("/api/admin/login", { password: "test-secret" })).status).toBe(204)
+    expect(
+      (await client().post("/api/admin/login", { password: "test-secret" }))
+        .status
+    ).toBe(204)
   })
 
   it("keys the limit on the last X-Forwarded-For hop, so a spoofed first entry does not help", async () => {

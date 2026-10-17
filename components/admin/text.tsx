@@ -5,36 +5,42 @@
 // subtitle 14, body 13, caption 12) to stay close to the Paper artboards; the
 // controls around it follow the app's compact size.
 
-import Link from "next/link";
-import type { ReactNode } from "react";
-import { typeClass } from "@/lib/type-scale";
-import { fontWeights } from "@/lib/font-weight";
-import { cn } from "@/lib/utils";
+import Link from "next/link"
+import type { ReactNode } from "react"
+import { typeClass } from "@/lib/type-scale"
+import { fontWeights } from "@/lib/font-weight"
+import { cn } from "@/lib/utils"
 
-export const semibold = { fontVariationSettings: fontWeights.semibold } as const;
-export const normal = { fontVariationSettings: fontWeights.normal } as const;
+export const semibold = { fontVariationSettings: fontWeights.semibold } as const
+export const normal = { fontVariationSettings: fontWeights.normal } as const
 
 /** White card on a 1px border ring with a hairline drop, 14px corners. */
 export const cardClass =
-  "rounded-[14px] bg-card shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(0_0_0/0.04)]";
+  "rounded-[14px] bg-card shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(0_0_0/0.04)]"
 
 export function PageTitle({ children }: { children: ReactNode }) {
   return (
-    <h1 className={cn(typeClass("display", "compact"), "text-foreground")} style={semibold}>
+    <h1
+      className={cn(typeClass("display", "compact"), "text-foreground")}
+      style={semibold}
+    >
       {children}
     </h1>
-  );
+  )
 }
 
 export interface Crumb {
-  label: string;
-  href?: string;
+  label: string
+  href?: string
 }
 
 /** "Projekte / tanjas-oase" above a page title. */
 export function Crumbs({ items }: { items: Crumb[] }) {
   return (
-    <nav aria-label="Pfad" className={cn(typeClass("body", "compact"), "text-muted-foreground")}>
+    <nav
+      aria-label="Pfad"
+      className={cn(typeClass("body", "compact"), "text-muted-foreground")}
+    >
       <ol className="flex flex-wrap items-center gap-1">
         {items.map((item, i) => (
           <li key={i} className="flex items-center gap-1">
@@ -42,7 +48,7 @@ export function Crumbs({ items }: { items: Crumb[] }) {
             {item.href ? (
               <Link
                 href={item.href}
-                className="rounded-sm outline-none transition-colors duration-80 hover:text-foreground focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+                className="rounded-sm transition-colors duration-80 outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
               >
                 {item.label}
               </Link>
@@ -53,7 +59,7 @@ export function Crumbs({ items }: { items: Crumb[] }) {
         ))}
       </ol>
     </nav>
-  );
+  )
 }
 
 /** Title block plus a trailing action, bottom-aligned like the artboards. */
@@ -62,9 +68,9 @@ export function PageHeader({
   title,
   action,
 }: {
-  crumbs?: Crumb[];
-  title: ReactNode;
-  action?: ReactNode;
+  crumbs?: Crumb[]
+  title: ReactNode
+  action?: ReactNode
 }) {
   return (
     <header className="flex items-end justify-between gap-4">
@@ -74,27 +80,51 @@ export function PageHeader({
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </header>
-  );
+  )
 }
 
 /** Dashed empty-state card ("Noch kein Projekt."). */
-export function EmptyState({ title, children }: { title: string; children: ReactNode }) {
+export function EmptyState({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode
+}) {
   return (
     <div className="flex flex-col items-start gap-2 rounded-[14px] border border-dashed border-border px-8 py-14">
-      <p className={cn(typeClass("title", "compact"), "text-foreground")} style={semibold}>
+      <p
+        className={cn(typeClass("title", "compact"), "text-foreground")}
+        style={semibold}
+      >
         {title}
       </p>
-      <p className={cn(typeClass("body", "compact"), "max-w-105 text-muted-foreground")}>{children}</p>
+      <p
+        className={cn(
+          typeClass("body", "compact"),
+          "max-w-105 text-muted-foreground"
+        )}
+      >
+        {children}
+      </p>
     </div>
-  );
+  )
 }
 
 /** Explanation on the left, destructive action on the right. */
-export function DangerZone({ text, children }: { text: string; children: ReactNode }) {
+export function DangerZone({
+  text,
+  children,
+}: {
+  text: string
+  children: ReactNode
+}) {
   return (
     <div className="flex items-center justify-between gap-4 pt-9">
-      <p className={cn(typeClass("body", "compact"), "text-muted-foreground")}>{text}</p>
+      <p className={cn(typeClass("body", "compact"), "text-muted-foreground")}>
+        {text}
+      </p>
       {children}
     </div>
-  );
+  )
 }

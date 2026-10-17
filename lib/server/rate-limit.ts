@@ -5,10 +5,15 @@ import "server-only"
 type Bucket = "login" | "write"
 
 const DEFAULTS: Record<Bucket, number> = { login: 10, write: 30 }
-const ENV: Record<Bucket, string> = { login: "DRAFTLY_RATE_LOGIN", write: "DRAFTLY_RATE_WRITE" }
+const ENV: Record<Bucket, string> = {
+  login: "DRAFTLY_RATE_LOGIN",
+  write: "DRAFTLY_RATE_WRITE",
+}
 const WINDOW_MS = 60_000
 
-const g = globalThis as unknown as { __draftlyRate?: Map<string, { start: number; count: number }> }
+const g = globalThis as unknown as {
+  __draftlyRate?: Map<string, { start: number; count: number }>
+}
 const hits = (g.__draftlyRate ??= new Map())
 
 function limitFor(bucket: Bucket): number {

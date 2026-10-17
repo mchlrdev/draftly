@@ -43,7 +43,10 @@ async function listen(c: Client, api: string) {
 
   /** Resolves true when the server ends the stream within the timeout. */
   async function endsWithin(timeoutMs = 2000) {
-    return Promise.race([ended.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), timeoutMs))])
+    return Promise.race([
+      ended.then(() => true),
+      new Promise<boolean>((r) => setTimeout(() => r(false), timeoutMs)),
+    ])
   }
 
   async function next(type: DraftEvent["type"], timeoutMs = 2000) {
@@ -76,7 +79,9 @@ describe("live events", () => {
     const stream = await listen(watcher, api)
     try {
       const started = Date.now()
-      const created = (await (await writer.post(`${api}/threads`, { ...pin, pageId })).json()) as Thread
+      const created = (await (
+        await writer.post(`${api}/threads`, { ...pin, pageId })
+      ).json()) as Thread
       const event = await stream.next("thread.created")
       expect(Date.now() - started).toBeLessThan(2000)
       expect(event).toEqual({ type: "thread.created", thread: created })
@@ -90,23 +95,56 @@ describe("live events", () => {
     const r = await reviewer(project, draft, password)
     const stream = await listen(op, api)
     try {
-      const thread = (await (await r.post(`${api}/threads`, { ...pin, pageId })).json()) as Thread
+      const thread = (await (
+        await r.post(`${api}/threads`, { ...pin, pageId })
+      ).json()) as Thread
       await stream.next("thread.created")
 
-      const reply = await (await r.post(`${api}/threads/${thread.id}/comments`, { body: "Antwort", authorName: "P", clientId: "b" })).json()
-      expect(await stream.next("comment.created")).toEqual({ type: "comment.created", comment: reply })
+      const reply = await (
+        await r.post(`${api}/threads/${thread.id}/comments`, {
+          body: "Antwort",
+          authorName: "P",
+          clientId: "b",
+        })
+      ).json()
+      expect(await stream.next("comment.created")).toEqual({
+        type: "comment.created",
+        comment: reply,
+      })
 
-      const edited = await (await r.patch(`${api}/comments/${reply.id}`, { body: "Neu", clientId: "b" })).json()
-      expect(await stream.next("comment.updated")).toEqual({ type: "comment.updated", comment: edited })
+      const edited = await (
+        await r.patch(`${api}/comments/${reply.id}`, {
+          body: "Neu",
+          clientId: "b",
+        })
+      ).json()
+      expect(await stream.next("comment.updated")).toEqual({
+        type: "comment.updated",
+        comment: edited,
+      })
 
-      const deleted = await (await r.del(`${api}/comments/${reply.id}`, { clientId: "b" })).json()
-      expect(await stream.next("comment.deleted")).toEqual({ type: "comment.deleted", comment: deleted })
+      const deleted = await (
+        await r.del(`${api}/comments/${reply.id}`, { clientId: "b" })
+      ).json()
+      expect(await stream.next("comment.deleted")).toEqual({
+        type: "comment.deleted",
+        comment: deleted,
+      })
 
-      const resolved = await (await op.patch(`${api}/threads/${thread.id}`, { status: "resolved" })).json()
-      expect(await stream.next("thread.updated")).toEqual({ type: "thread.updated", thread: resolved })
+      const resolved = await (
+        await op.patch(`${api}/threads/${thread.id}`, { status: "resolved" })
+      ).json()
+      expect(await stream.next("thread.updated")).toEqual({
+        type: "thread.updated",
+        thread: resolved,
+      })
 
       await op.del(`${api}/threads/${thread.id}`)
-      expect(await stream.next("thread.deleted")).toEqual({ type: "thread.deleted", threadId: thread.id, pageId })
+      expect(await stream.next("thread.deleted")).toEqual({
+        type: "thread.deleted",
+        threadId: thread.id,
+        pageId,
+      })
     } finally {
       stream.close()
     }
@@ -119,11 +157,22 @@ describe("live events", () => {
     const stream = await listen(watcher, api)
     const secret = "3f0c9a52-7d1e-4b8e-9a3c-5e2f1d0b7a64"
     try {
-      const thread = (await (await r.post(`${api}/threads`, { ...pin, clientId: secret, pageId })).json()) as Thread
+      const thread = (await (
+        await r.post(`${api}/threads`, { ...pin, clientId: secret, pageId })
+      ).json()) as Thread
       await stream.next("thread.created")
-      const reply = await (await r.post(`${api}/threads/${thread.id}/comments`, { body: "Antwort", authorName: "P", clientId: secret })).json()
+      const reply = await (
+        await r.post(`${api}/threads/${thread.id}/comments`, {
+          body: "Antwort",
+          authorName: "P",
+          clientId: secret,
+        })
+      ).json()
       await stream.next("comment.created")
-      await r.patch(`${api}/comments/${reply.id}`, { body: "Neu", clientId: secret })
+      await r.patch(`${api}/comments/${reply.id}`, {
+        body: "Neu",
+        clientId: secret,
+      })
       await stream.next("comment.updated")
       await r.del(`${api}/comments/${reply.id}`, { clientId: secret })
       await stream.next("comment.deleted")
@@ -144,17 +193,24 @@ describe("live events", () => {
     const { op, admin, api, pageId } = await setupDraft()
     const stream = await listen(op, api)
     try {
-      const a = (await (await op.post(`${api}/threads`, { ...pin, pageId })).json()) as Thread
-      const b = (await (await op.post(`${api}/threads`, { ...pin, pageId })).json()) as Thread
+      const a = (await (
+        await op.post(`${api}/threads`, { ...pin, pageId })
+      ).json()) as Thread
+      const b = (await (
+        await op.post(`${api}/threads`, { ...pin, pageId })
+      ).json()) as Thread
       await stream.next("thread.created")
       await stream.next("thread.created")
       expect((await op.del(`${admin}/pages/${pageId}`)).status).toBe(204)
-      const deleted = [await stream.next("thread.deleted"), await stream.next("thread.deleted")]
+      const deleted = [
+        await stream.next("thread.deleted"),
+        await stream.next("thread.deleted"),
+      ]
       expect(deleted).toEqual(
         expect.arrayContaining([
           { type: "thread.deleted", threadId: a.id, pageId },
           { type: "thread.deleted", threadId: b.id, pageId },
-        ]),
+        ])
       )
     } finally {
       stream.close()

@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
-import { typeClass } from "@/lib/type-scale";
-import { fontWeights } from "@/lib/font-weight";
+import type { ReactNode } from "react"
+import { cn } from "@/lib/utils"
+import { typeClass } from "@/lib/type-scale"
+import { fontWeights } from "@/lib/font-weight"
 
 // The shell shared by the password gate and the 404 (artboards Passwort,
 // Passwort · Fehler, 404): the Draftly wordmark above one centred card on
@@ -23,19 +23,37 @@ export function CenteredCard({ children }: { children: ReactNode }) {
         {children}
       </div>
     </main>
-  );
+  )
 }
 
-export function CardHeading({ title, subtitle, className }: { title: string; subtitle: string; className?: string }) {
+export function CardHeading({
+  title,
+  subtitle,
+  className,
+}: {
+  title: string
+  subtitle: string
+  className?: string
+}) {
   return (
     <div className={cn("flex w-full flex-col gap-2 text-center", className)}>
       <h1
-        className={cn(typeClass("display", "compact"), "text-foreground text-balance")}
+        className={cn(
+          typeClass("display", "compact"),
+          "text-balance text-foreground"
+        )}
         style={{ fontVariationSettings: fontWeights.semibold }}
       >
         {title}
       </h1>
-      <p className={cn(typeClass("subtitle", "compact"), "text-muted-foreground")}>{subtitle}</p>
+      <p
+        className={cn(
+          typeClass("subtitle", "compact"),
+          "text-muted-foreground"
+        )}
+      >
+        {subtitle}
+      </p>
     </div>
-  );
+  )
 }

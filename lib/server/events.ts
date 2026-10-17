@@ -13,7 +13,9 @@ export type BusMessage = DraftEvent | typeof CLOSE_STREAM
 
 type Listener = (message: BusMessage) => void
 
-const g = globalThis as unknown as { __draftlyEvents?: Map<string, Set<Listener>> }
+const g = globalThis as unknown as {
+  __draftlyEvents?: Map<string, Set<Listener>>
+}
 const channels = (g.__draftlyEvents ??= new Map())
 
 export function subscribe(draftId: string, listener: Listener): () => void {

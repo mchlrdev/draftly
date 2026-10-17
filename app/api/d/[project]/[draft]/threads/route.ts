@@ -1,5 +1,11 @@
 import { requireDraftAccess } from "@/lib/server/access"
-import { handle, json, readJson, tooManyRequests, type Params } from "@/lib/server/http"
+import {
+  handle,
+  json,
+  readJson,
+  tooManyRequests,
+  type Params,
+} from "@/lib/server/http"
 import { allow } from "@/lib/server/rate-limit"
 import { createThread } from "@/lib/server/store"
 

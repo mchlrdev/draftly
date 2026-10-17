@@ -1,4 +1,10 @@
-import { handle, json, readJson, requireOperator, type Params } from "@/lib/server/http"
+import {
+  handle,
+  json,
+  readJson,
+  requireOperator,
+  type Params,
+} from "@/lib/server/http"
 import { createPage, reorderPages } from "@/lib/server/store"
 import { readPageForm } from "@/lib/server/upload"
 

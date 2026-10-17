@@ -1,5 +1,11 @@
 import { requireDraftAccess, requireOperatorAccess } from "@/lib/server/access"
-import { handle, json, noContent, readJson, type Params } from "@/lib/server/http"
+import {
+  handle,
+  json,
+  noContent,
+  readJson,
+  type Params,
+} from "@/lib/server/http"
 import { deleteThread, setThreadStatus } from "@/lib/server/store"
 
 type Ctx = Params<"project" | "draft" | "threadId">
