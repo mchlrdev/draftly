@@ -213,7 +213,7 @@ function PageRow({
         }}
         onKeyDown={onKeyDown}
         className={cn(
-          "-ml-1 flex h-8 w-6 shrink-0 touch-none items-center justify-center rounded-md outline-none",
+          "-ml-1 flex h-7 w-6 shrink-0 touch-none items-center justify-center rounded-md outline-none",
           "transition-colors duration-80 hover:bg-hover focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]",
           dragging ? "cursor-grabbing" : "cursor-grab",
         )}
