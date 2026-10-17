@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useIcons } from "@/lib/icon-context"
 import { operatorApi } from "@/lib/admin/api"
-import { BrandLabel } from "@/components/admin/brand-label"
+import { BrandLabel } from "@/components/brand-label"
 
 // The operator shell: a 240px sidebar with the one destination (Projekte)
 // and a sign-out row, and the page in the inset beside it.
