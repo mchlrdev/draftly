@@ -15,6 +15,10 @@ export function ThemeProvider({
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
+      // The anti-flash script only needs to run from the server HTML. On the
+      // client, an inert type keeps React 19 from warning about a script tag
+      // it will never execute (next-themes suppresses the hydration mismatch).
+      scriptProps={{ type: typeof window === "undefined" ? undefined : "text/plain" }}
       {...props}
     >
       <ThemeHotkey />
