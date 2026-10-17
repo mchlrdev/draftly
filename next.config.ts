@@ -6,8 +6,6 @@ const nextConfig: NextConfig = {
   // Tests and parallel dev servers each get their own build dir, since a
   // `next dev` holds a lock on its distDir.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
-  // node:sqlite is a Node builtin; keep it out of the bundler.
-  serverExternalPackages: [],
 }
 
 export default nextConfig
