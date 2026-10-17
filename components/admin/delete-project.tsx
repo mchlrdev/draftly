@@ -14,20 +14,54 @@ import { DangerZone, semibold } from "@/components/admin/text"
 import { operatorApi } from "@/lib/admin/api"
 import { deleteProjectAction, deleteProjectText } from "@/lib/admin/format"
 
-// Artboard "Projekt löschen". An empty project goes after a plain confirm.
-// One with drafts (known from the page, or learned from a 409) asks for the
-// slug to be typed, then deletes with ?force=1.
-export function DeleteProject({
-  slug,
-  title,
-  draftCount,
-}: {
+export interface DeleteProjectTarget {
   slug: string
   title: string
   draftCount: number
+}
+
+// Artboard "Projekt löschen" as the danger zone at the foot of the project page.
+export function DeleteProject(target: DeleteProjectTarget) {
+  const [opening, setOpening] = useState({ key: 0, open: false })
+  return (
+    <>
+      <DangerZone text="Ein Projekt löschen nimmt alle Drafts und ihre Links mit.">
+        <Button
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          style={semibold}
+          onClick={() => setOpening((o) => ({ key: o.key + 1, open: true }))}
+        >
+          Projekt löschen
+        </Button>
+      </DangerZone>
+      <DeleteProjectDialog
+        key={opening.key}
+        open={opening.open}
+        onOpenChange={(open) => setOpening((o) => ({ ...o, open }))}
+        target={target}
+        leaveTo="/admin"
+      />
+    </>
+  )
+}
+
+// An empty project goes after a plain confirm. One with drafts (known from
+// the props, or learned from a 409) asks for the slug to be typed, then
+// deletes with ?force=1. Mount it fresh per opening (key).
+export function DeleteProjectDialog({
+  open,
+  onOpenChange,
+  target: { slug, title, draftCount },
+  leaveTo,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  target: DeleteProjectTarget
+  /** Where to go afterwards when the current page belonged to the project. */
+  leaveTo?: string
 }) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
   const [count, setCount] = useState(draftCount)
   const [typed, setTyped] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -36,21 +70,13 @@ export function DeleteProject({
   const needsForce = count > 0
   const canSubmit = !pending && (!needsForce || typed === slug)
 
-  const start = () => {
-    setCount(draftCount)
-    setTyped("")
-    setError(null)
-    setPending(false)
-    setOpen(true)
-  }
-
   const submit = async () => {
     if (!canSubmit) return
     setPending(true)
     const res = await operatorApi.deleteProject(slug, needsForce)
     if (res.ok) {
-      setOpen(false)
-      router.push("/admin")
+      onOpenChange(false)
+      if (leaveTo) router.push(leaveTo)
       router.refresh()
       return
     }
@@ -65,57 +91,45 @@ export function DeleteProject({
   }
 
   return (
-    <>
-      <DangerZone text="Ein Projekt löschen nimmt alle Drafts und ihre Links mit.">
-        <Button
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          style={semibold}
-          onClick={start}
-        >
-          Projekt löschen
-        </Button>
-      </DangerZone>
-      <OperatorDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Projekt löschen?"
-        description={
-          needsForce
-            ? deleteProjectText(title, count)
-            : `„${title}“ hat keine Drafts. Das Projekt verschwindet aus der Liste.`
-        }
-        onSubmit={submit}
-        actions={
-          <>
-            <CancelButton onClick={() => setOpen(false)} />
-            <DangerButton type="submit" disabled={!canSubmit} loading={pending}>
-              {needsForce ? deleteProjectAction(count) : "Projekt löschen"}
-            </DangerButton>
-          </>
-        }
-      >
-        {needsForce && (
-          <InputGroup className="w-full">
-            <InputField
-              index={0}
-              label={`Zum Bestätigen den Slug tippen: ${slug}`}
-              placeholder={slug}
-              value={typed}
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              onChange={(v) => {
-                setTyped(v.trim())
-                setError(null)
-              }}
-              error={error ?? undefined}
-            />
-          </InputGroup>
-        )}
-        {!needsForce && error && <ErrorText>{error}</ErrorText>}
-      </OperatorDialog>
-    </>
+    <OperatorDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Projekt löschen?"
+      description={
+        needsForce
+          ? deleteProjectText(title, count)
+          : `„${title}“ hat keine Drafts. Das Projekt verschwindet aus der Liste.`
+      }
+      onSubmit={submit}
+      actions={
+        <>
+          <CancelButton onClick={() => onOpenChange(false)} />
+          <DangerButton type="submit" disabled={!canSubmit} loading={pending}>
+            {needsForce ? deleteProjectAction(count) : "Projekt löschen"}
+          </DangerButton>
+        </>
+      }
+    >
+      {needsForce && (
+        <InputGroup className="w-full">
+          <InputField
+            index={0}
+            label={`Zum Bestätigen den Slug tippen: ${slug}`}
+            placeholder={slug}
+            value={typed}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={(v) => {
+              setTyped(v.trim())
+              setError(null)
+            }}
+            error={error ?? undefined}
+          />
+        </InputGroup>
+      )}
+      {!needsForce && error && <ErrorText>{error}</ErrorText>}
+    </OperatorDialog>
   )
 }

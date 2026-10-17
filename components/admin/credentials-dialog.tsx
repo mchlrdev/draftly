@@ -9,8 +9,8 @@ import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
 // Artboards "Draft angelegt" and "Passwort rotiert": the link and the
-// plaintext password, shown this once with copy buttons. The password is
-// only in this component's props; closing the dialog drops it.
+// plaintext password with copy buttons. The draft page can show the password
+// again later (ADR 0002 amendment).
 export function CredentialsDialog({
   open,
   onOpenChange,
@@ -66,7 +66,7 @@ export function CredentialsDialog({
       </FieldBlock>
       <FieldBlock
         label="Passwort"
-        hint="Kopiere es jetzt – Draftly speichert nur einen Hash."
+        hint="Du findest es jederzeit wieder auf der Draft-Seite."
       >
         <div className="flex h-14 items-center justify-between gap-2 rounded-xl bg-muted pr-2 pl-3.5">
           <span

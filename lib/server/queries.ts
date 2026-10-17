@@ -41,6 +41,11 @@ export async function getDraftAccess(
   }
 }
 
+/** Operator only. The name set in /admin, or null. */
+export async function getOperatorName(): Promise<string | null> {
+  return store.getOperatorName()
+}
+
 /** Operator only (caller checks isOperator first). Newest first. */
 export async function listProjects(): Promise<Project[]> {
   return store.listProjects()

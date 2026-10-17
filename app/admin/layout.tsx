@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import type { ReactNode } from "react"
-import { isOperator } from "@/lib/server/queries"
+import { getOperatorName, isOperator, listProjects } from "@/lib/server/queries"
 import { OperatorShell } from "@/components/admin/operator-shell"
 import { LoginForm } from "@/components/admin/login-form"
 
@@ -10,13 +10,23 @@ export const metadata: Metadata = {
 }
 
 // Every /admin route: the login until the operator cookie is there, the
-// shell around the page after. Pages check again and render nothing when
-// signed out, so no operator data is read without the session.
+// shell around the page after. The shell's sidebar lists every project and
+// its drafts; client mutations call router.refresh() to re-read it. Pages
+// check again and render nothing when signed out, so no operator data is
+// read without the session.
 export default async function OperatorLayout({
   children,
 }: {
   children: ReactNode
 }) {
   if (!(await isOperator())) return <LoginForm />
-  return <OperatorShell>{children}</OperatorShell>
+  const [projects, operatorName] = await Promise.all([
+    listProjects(),
+    getOperatorName(),
+  ])
+  return (
+    <OperatorShell projects={projects} operatorName={operatorName}>
+      {children}
+    </OperatorShell>
+  )
 }

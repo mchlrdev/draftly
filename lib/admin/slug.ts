@@ -33,7 +33,7 @@ export function slugProblem(
   return null
 }
 
-/** A slug suggestion from a free-text title: "Tanjas Wellness-Oase" → "tanjas-wellness-oase". */
+/** A slug suggestion from a free-text title: "Mein Projekt-Name" → "mein-projekt-name". */
 export function slugify(title: string): string {
   return title
     .toLowerCase()

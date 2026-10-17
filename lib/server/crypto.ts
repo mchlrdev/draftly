@@ -1,7 +1,10 @@
 import "server-only"
 
 import {
+  createCipheriv,
+  createDecipheriv,
   createHmac,
+  hkdfSync,
   randomBytes,
   randomInt,
   scryptSync,
@@ -77,4 +80,57 @@ export function serverSecret(): string {
 
 export function hmac(data: string): string {
   return createHmac("sha256", serverSecret()).update(data).digest("base64url")
+}
+
+// ---------- draft password at rest (ADR 0002 amendment) ----------
+// AES-256-GCM under a key derived (HKDF-SHA256) from the server secret.
+// Stored as `v1$<iv>$<tag>$<ciphertext>` (base64url). Reviewer access is still
+// checked against the scrypt hash; this copy only lets the operator read it.
+
+function passwordKey(): Buffer {
+  return Buffer.from(
+    hkdfSync(
+      "sha256",
+      serverSecret(),
+      Buffer.alloc(0),
+      "draftly:draft-password:v1",
+      32
+    )
+  )
+}
+
+export function encryptPassword(password: string, aad: string): string {
+  const iv = randomBytes(12)
+  const cipher = createCipheriv("aes-256-gcm", passwordKey(), iv)
+  cipher.setAAD(Buffer.from(aad))
+  const ct = Buffer.concat([cipher.update(password, "utf8"), cipher.final()])
+  const tag = cipher.getAuthTag()
+  return ["v1", iv, tag, ct]
+    .map((p) => (typeof p === "string" ? p : p.toString("base64url")))
+    .join("$")
+}
+
+/** Null when missing or when it does not decrypt (wrong secret, tampered). */
+export function decryptPassword(
+  stored: string | null | undefined,
+  aad: string
+): string | null {
+  if (!stored) return null
+  const [version, iv, tag, ct] = stored.split("$")
+  if (version !== "v1" || !iv || !tag || !ct) return null
+  try {
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      passwordKey(),
+      Buffer.from(iv, "base64url")
+    )
+    decipher.setAAD(Buffer.from(aad))
+    decipher.setAuthTag(Buffer.from(tag, "base64url"))
+    return Buffer.concat([
+      decipher.update(Buffer.from(ct, "base64url")),
+      decipher.final(),
+    ]).toString("utf8")
+  } catch {
+    return null
+  }
 }

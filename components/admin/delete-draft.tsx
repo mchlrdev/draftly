@@ -13,13 +13,49 @@ import { DangerZone, semibold } from "@/components/admin/text"
 import { useOrigin } from "@/components/admin/use-origin"
 import { operatorApi } from "@/lib/admin/api"
 import { deleteDraftText, draftUrl } from "@/lib/admin/format"
-import type { Draft } from "@/lib/api-types"
+import type { DraftSummary } from "@/lib/api-types"
 
-// Artboard "Draft löschen".
-export function DeleteDraft({ draft }: { draft: Draft }) {
+// Artboard "Draft löschen" as the danger zone at the foot of the draft page.
+export function DeleteDraft({ draft }: { draft: DraftSummary }) {
+  const [opening, setOpening] = useState({ key: 0, open: false })
+  return (
+    <>
+      <DangerZone text="Den Draft löschen macht den Link sofort ungültig. Kommentare gehen mit.">
+        <Button
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          style={semibold}
+          onClick={() => setOpening((o) => ({ key: o.key + 1, open: true }))}
+        >
+          Draft löschen
+        </Button>
+      </DangerZone>
+      <DeleteDraftDialog
+        key={opening.key}
+        open={opening.open}
+        onOpenChange={(open) => setOpening((o) => ({ ...o, open }))}
+        draft={draft}
+        leaveTo={`/admin/${draft.projectSlug}`}
+      />
+    </>
+  )
+}
+
+/** Controlled; mount it fresh per opening (key). */
+export function DeleteDraftDialog({
+  open,
+  onOpenChange,
+  draft,
+  leaveTo,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  draft: DraftSummary
+  /** Where to go afterwards when the current page was this draft. */
+  leaveTo?: string
+}) {
   const router = useRouter()
   const origin = useOrigin()
-  const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,47 +67,31 @@ export function DeleteDraft({ draft }: { draft: Draft }) {
       setError(res.error)
       return
     }
-    setOpen(false)
-    router.push(`/admin/${draft.projectSlug}`)
+    onOpenChange(false)
+    if (leaveTo) router.push(leaveTo)
     router.refresh()
   }
 
   return (
-    <>
-      <DangerZone text="Den Draft löschen macht den Link sofort ungültig. Kommentare gehen mit.">
-        <Button
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          style={semibold}
-          onClick={() => {
-            setError(null)
-            setPending(false)
-            setOpen(true)
-          }}
-        >
-          Draft löschen
-        </Button>
-      </DangerZone>
-      <OperatorDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={`${draft.slug} löschen?`}
-        description={deleteDraftText(
-          draftUrl(origin, draft.projectSlug, draft.slug),
-          draft
-        )}
-        onSubmit={submit}
-        actions={
-          <>
-            <CancelButton onClick={() => setOpen(false)} />
-            <DangerButton type="submit" loading={pending}>
-              Draft löschen
-            </DangerButton>
-          </>
-        }
-      >
-        {error && <ErrorText>{error}</ErrorText>}
-      </OperatorDialog>
-    </>
+    <OperatorDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`${draft.slug} löschen?`}
+      description={deleteDraftText(
+        draftUrl(origin, draft.projectSlug, draft.slug),
+        draft
+      )}
+      onSubmit={submit}
+      actions={
+        <>
+          <CancelButton onClick={() => onOpenChange(false)} />
+          <DangerButton type="submit" loading={pending}>
+            Draft löschen
+          </DangerButton>
+        </>
+      }
+    >
+      {error && <ErrorText>{error}</ErrorText>}
+    </OperatorDialog>
   )
 }

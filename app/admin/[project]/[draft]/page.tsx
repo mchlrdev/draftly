@@ -21,8 +21,10 @@ export default async function OperatorDraftPage({
     <>
       <PageHeader
         crumbs={[
-          { label: "Projekte", href: "/admin" },
-          { label: draft.projectSlug, href: `/admin/${draft.projectSlug}` },
+          {
+            label: draft.projectTitle || draft.projectSlug,
+            href: `/admin/${draft.projectSlug}`,
+          },
         ]}
         title={draft.slug}
         action={

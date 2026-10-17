@@ -6,7 +6,7 @@ import { NewDraftButton } from "@/components/admin/new-draft-dialog"
 import { DeleteProject } from "@/components/admin/delete-project"
 import { draftMeta } from "@/lib/admin/format"
 
-// Artboard "Projekt".
+// Artboard "Projekt", kept light: the sidebar already lists the drafts.
 export default async function OperatorProjectPage({
   params,
 }: {
@@ -21,10 +21,7 @@ export default async function OperatorProjectPage({
   return (
     <>
       <PageHeader
-        crumbs={[
-          { label: "Projekte", href: "/admin" },
-          { label: project.slug },
-        ]}
+        crumbs={[{ label: project.slug }]}
         title={project.title || project.slug}
         action={
           <NewDraftButton

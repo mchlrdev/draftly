@@ -18,7 +18,14 @@ import {
   type ThreadStatus,
 } from "@/lib/api-types"
 import { db, now, tx } from "./db"
-import { generatePassword, hashPassword, newId, verifyPassword } from "./crypto"
+import {
+  decryptPassword,
+  encryptPassword,
+  generatePassword,
+  hashPassword,
+  newId,
+  verifyPassword,
+} from "./crypto"
 import { closeStreams, publish } from "./events"
 import { HttpError, notFound, unprocessable } from "./http"
 
@@ -39,6 +46,8 @@ export interface DraftRow {
   project_id: number
   slug: string
   password_hash: string
+  /** Encrypted plaintext (ADR 0002 amendment); null for older drafts. */
+  password_enc: string | null
   letterbox: string
   created_at: string
   project_slug: string
@@ -283,6 +292,30 @@ export function createProject(input: {
   return getProject(slug)!
 }
 
+export function updateProject(
+  slug: string,
+  input: { slug?: unknown; title?: unknown }
+): Project {
+  const row = requireProject(slug)
+  const nextSlug = input.slug === undefined ? row.slug : projectSlug(input.slug)
+  let title = row.title
+  if (input.title !== undefined) {
+    title = str(input.title).trim() || nextSlug
+    if (title.length > 120)
+      throw unprocessable("Titel darf höchstens 120 Zeichen lang sein.")
+  }
+  try {
+    db()
+      .prepare("UPDATE projects SET slug = ?, title = ? WHERE id = ?")
+      .run(nextSlug, title, row.id)
+  } catch (err) {
+    if (isUniqueViolation(err))
+      throw new HttpError(409, `Das Projekt „${nextSlug}“ gibt es schon.`)
+    throw err
+  }
+  return getProject(nextSlug)!
+}
+
 export function deleteProject(slug: string, force: boolean): void {
   const row = requireProject(slug)
   const { n } = db()
@@ -345,12 +378,21 @@ export function createDraft(
       ? DEFAULT_LETTERBOX
       : letterbox(input.letterbox)
   const password = generatePassword()
+  const id = newId(9)
   try {
     db()
       .prepare(
-        "INSERT INTO drafts (id, project_id, slug, password_hash, letterbox, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO drafts (id, project_id, slug, password_hash, password_enc, letterbox, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
-      .run(newId(9), p.id, slug, hashPassword(password), color, now())
+      .run(
+        id,
+        p.id,
+        slug,
+        hashPassword(password),
+        encryptPassword(password, id),
+        color,
+        now()
+      )
   } catch (err) {
     if (isUniqueViolation(err))
       throw new HttpError(
@@ -365,15 +407,35 @@ export function createDraft(
 export function updateDraft(
   project: string,
   draft: string,
-  input: { letterbox?: unknown }
+  input: { letterbox?: unknown; slug?: unknown }
 ): Draft {
   const row = requireDraft(project, draft)
-  if (input.letterbox !== undefined) {
+  const nextSlug = input.slug === undefined ? row.slug : draftSlug(input.slug)
+  const color =
+    input.letterbox === undefined ? row.letterbox : letterbox(input.letterbox)
+  try {
     db()
-      .prepare("UPDATE drafts SET letterbox = ? WHERE id = ?")
-      .run(letterbox(input.letterbox), row.id)
+      .prepare("UPDATE drafts SET slug = ?, letterbox = ? WHERE id = ?")
+      .run(nextSlug, color, row.id)
+  } catch (err) {
+    if (isUniqueViolation(err))
+      throw new HttpError(
+        409,
+        `Den Entwurf „${nextSlug}“ gibt es in diesem Projekt schon.`
+      )
+    throw err
   }
-  return toDraft(requireDraft(project, draft))
+  return toDraft(requireDraft(project, nextSlug))
+}
+
+/** The plaintext password for the operator; null for drafts created before
+ *  it was stored (rotate once to get one). */
+export function readPassword(
+  project: string,
+  draft: string
+): { password: string | null } {
+  const row = requireDraft(project, draft)
+  return { password: decryptPassword(row.password_enc, row.id) }
 }
 
 export function rotatePassword(
@@ -383,8 +445,10 @@ export function rotatePassword(
   const row = requireDraft(project, draft)
   const password = generatePassword()
   db()
-    .prepare("UPDATE drafts SET password_hash = ? WHERE id = ?")
-    .run(hashPassword(password), row.id)
+    .prepare(
+      "UPDATE drafts SET password_hash = ?, password_enc = ? WHERE id = ?"
+    )
+    .run(hashPassword(password), encryptPassword(password, row.id), row.id)
   // Old cookies stop working; open streams must not outlive them.
   closeStreams(row.id)
   return { password }
@@ -636,7 +700,12 @@ export function snapshot(row: DraftRow, operator: boolean): DraftSnapshot {
       "SELECT t.* FROM threads t JOIN pages p ON p.id = t.page_id WHERE p.draft_id = ? ORDER BY t.created_at, t.rowid"
     )
     .all(row.id) as unknown as ThreadRow[]
-  return { draft: toDraft(row), threads: toThreads(threads), operator }
+  return {
+    draft: toDraft(row),
+    threads: toThreads(threads),
+    operator,
+    operatorName: operator ? getOperatorName() : null,
+  }
 }
 
 export function createThread(
@@ -745,4 +814,39 @@ export function removeComment(
   const comment = commentById(draft.id, commentId)
   publish(draft.id, { type: "comment.deleted", comment })
   return comment
+}
+
+// ---------- operator settings (meta table) ----------
+
+const OPERATOR_NAME_KEY = "operator_name"
+
+export function getOperatorName(): string | null {
+  const row = db()
+    .prepare("SELECT value FROM meta WHERE key = ?")
+    .get(OPERATOR_NAME_KEY) as { value: string } | undefined
+  return row?.value || null
+}
+
+export function getSettings(): { operatorName: string | null } {
+  return { operatorName: getOperatorName() }
+}
+
+export function updateSettings(input: { operatorName?: unknown }): {
+  operatorName: string | null
+} {
+  if (input.operatorName !== undefined) {
+    if (input.operatorName !== null && typeof input.operatorName !== "string")
+      throw unprocessable("Name muss Text sein.")
+    const name = str(input.operatorName).trim()
+    if (name.length > 60)
+      throw unprocessable("Name darf höchstens 60 Zeichen lang sein.")
+    if (name)
+      db()
+        .prepare(
+          "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        )
+        .run(OPERATOR_NAME_KEY, name)
+    else db().prepare("DELETE FROM meta WHERE key = ?").run(OPERATOR_NAME_KEY)
+  }
+  return getSettings()
 }

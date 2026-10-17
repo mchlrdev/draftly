@@ -7,6 +7,11 @@ import { apiFetch, type ApiResult } from "@/lib/api-client"
 
 export type { ApiResult }
 
+/** GET/PUT /api/admin/settings. */
+export interface OperatorSettings {
+  operatorName: string | null
+}
+
 const call = apiFetch
 
 const enc = encodeURIComponent
@@ -18,10 +23,22 @@ export const operatorApi = {
     call<void>("/api/admin/login", { method: "POST", json: { password } }),
   logout: () => call<void>("/api/admin/logout", { method: "POST" }),
 
+  getSettings: () => call<OperatorSettings>("/api/admin/settings"),
+  updateSettings: (settings: OperatorSettings) =>
+    call<OperatorSettings>("/api/admin/settings", {
+      method: "PUT",
+      json: settings,
+    }),
+
   createProject: (slug: string, title?: string) =>
     call<Project>("/api/admin/projects", {
       method: "POST",
       json: title ? { slug, title } : { slug },
+    }),
+  updateProject: (project: string, patch: { title?: string; slug?: string }) =>
+    call<Project>(`/api/admin/projects/${enc(project)}`, {
+      method: "PATCH",
+      json: patch,
     }),
   deleteProject: (project: string, force = false) =>
     call<void>(
@@ -37,11 +54,18 @@ export const operatorApi = {
         json: letterbox ? { slug, letterbox } : { slug },
       }
     ),
-  updateDraft: (project: string, draft: string, letterbox: string) =>
+  updateDraft: (
+    project: string,
+    draft: string,
+    patch: { letterbox?: string; slug?: string }
+  ) =>
     call<Draft>(draftPath(project, draft), {
       method: "PATCH",
-      json: { letterbox },
+      json: patch,
     }),
+  /** null for drafts created before the password was stored. */
+  readPassword: (project: string, draft: string) =>
+    call<{ password: string | null }>(`${draftPath(project, draft)}/password`),
   rotatePassword: (project: string, draft: string) =>
     call<{ password: string }>(`${draftPath(project, draft)}/rotate`, {
       method: "POST",
@@ -67,6 +91,16 @@ export const operatorApi = {
     call<Page>(`${draftPath(project, draft)}/pages/${enc(pageId)}`, {
       method: "PUT",
       body: pageFormData(form),
+    }),
+  updatePage: (
+    project: string,
+    draft: string,
+    pageId: string,
+    patch: Partial<PageForm>
+  ) =>
+    call<Page>(`${draftPath(project, draft)}/pages/${enc(pageId)}`, {
+      method: "PATCH",
+      json: patch,
     }),
   reorderPages: (project: string, draft: string, order: string[]) =>
     call<Page[]>(`${draftPath(project, draft)}/pages`, {

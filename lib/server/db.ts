@@ -65,7 +65,28 @@ CREATE TABLE IF NOT EXISTS comments (
 CREATE INDEX IF NOT EXISTS comments_thread ON comments(thread_id, created_at);
 `
 
-const g = globalThis as unknown as { __draftlyDb?: DatabaseSync }
+// Additive changes to tables that may already exist. Each step checks before
+// it alters, so it is safe on a fresh database and on every restart.
+const MIGRATIONS_VERSION = 1
+
+function hasColumn(conn: DatabaseSync, table: string, column: string): boolean {
+  const cols = conn.prepare(`PRAGMA table_info(${table})`).all() as unknown as {
+    name: string
+  }[]
+  return cols.some((c) => c.name === column)
+}
+
+function migrate(conn: DatabaseSync): void {
+  // ADR 0002 amendment: the draft password, encrypted, next to its hash.
+  // NULL for drafts created before; the operator rotates once to fill it.
+  if (!hasColumn(conn, "drafts", "password_enc"))
+    conn.exec("ALTER TABLE drafts ADD COLUMN password_enc TEXT")
+}
+
+const g = globalThis as unknown as {
+  __draftlyDb?: DatabaseSync
+  __draftlyMigrations?: number
+}
 
 export function db(): DatabaseSync {
   if (!g.__draftlyDb) {
@@ -77,6 +98,11 @@ export function db(): DatabaseSync {
     )
     conn.exec(SCHEMA)
     g.__draftlyDb = conn
+  }
+  // Also runs on a connection kept across dev HMR from before a migration.
+  if (g.__draftlyMigrations !== MIGRATIONS_VERSION) {
+    migrate(g.__draftlyDb)
+    g.__draftlyMigrations = MIGRATIONS_VERSION
   }
   return g.__draftlyDb
 }

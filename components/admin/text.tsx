@@ -34,7 +34,7 @@ export interface Crumb {
   href?: string
 }
 
-/** "Projekte / tanjas-oase" above a page title. */
+/** "project-name" above a page title. */
 export function Crumbs({ items }: { items: Crumb[] }) {
   return (
     <nav

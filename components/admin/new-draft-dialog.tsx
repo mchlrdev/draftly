@@ -18,8 +18,13 @@ import { DEFAULT_LETTERBOX } from "@/lib/api-types"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
-// Artboards "Neuer Draft" → "Draft angelegt". The generated password exists
-// only in this component's state until the operator closes the second dialog.
+// Artboards "Neuer Draft" → "Draft angelegt". From the sidebar (which stays
+// mounted) the draft page opens behind the credentials dialog; the project
+// page's button stays put, since navigating would unmount the dialog. The password stays readable on the
+// draft page later (ADR 0002 amendment), so this dialog is a convenience,
+// not the only chance to copy it.
+
+/** The "Neuer Draft" button of the project page. */
 export function NewDraftButton({
   projectSlug,
   takenSlugs,
@@ -27,9 +32,44 @@ export function NewDraftButton({
   projectSlug: string
   takenSlugs: string[]
 }) {
+  const [opening, setOpening] = useState({ key: 0, open: false })
+  return (
+    <>
+      <Button
+        variant="primary"
+        onClick={() => setOpening((o) => ({ key: o.key + 1, open: true }))}
+      >
+        Neuer Draft
+      </Button>
+      <NewDraftDialog
+        key={opening.key}
+        open={opening.open}
+        onOpenChange={(open) => setOpening((o) => ({ ...o, open }))}
+        projectSlug={projectSlug}
+        takenSlugs={takenSlugs}
+        openAfterCreate={false}
+      />
+    </>
+  )
+}
+
+/** Controlled; mount it fresh per opening (key) so the fields start empty. */
+export function NewDraftDialog({
+  open,
+  onOpenChange,
+  projectSlug,
+  takenSlugs,
+  openAfterCreate = true,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectSlug: string
+  takenSlugs: string[]
+  /** Navigate to the new draft. Only where this component outlives the route. */
+  openAfterCreate?: boolean
+}) {
   const router = useRouter()
   const origin = useOrigin()
-  const [open, setOpen] = useState(false)
   const [slug, setSlug] = useState("")
   const [letterbox, setLetterbox] = useState(DEFAULT_LETTERBOX)
   const [letterboxText, setLetterboxText] = useState(DEFAULT_LETTERBOX)
@@ -47,16 +87,6 @@ export function NewDraftButton({
     : "Eine Farbe als #RRGGBB."
   const canSubmit = slug !== "" && !problem && !letterboxError && !pending
 
-  const start = () => {
-    setCreated(null)
-    setSlug("")
-    setLetterbox(DEFAULT_LETTERBOX)
-    setLetterboxText(DEFAULT_LETTERBOX)
-    setServerError(null)
-    setPending(false)
-    setOpen(true)
-  }
-
   const submit = async () => {
     if (!canSubmit) return
     setPending(true)
@@ -66,26 +96,25 @@ export function NewDraftButton({
       setServerError(res.error)
       return
     }
-    setOpen(false)
+    onOpenChange(false)
     setCreated({ slug: res.data.draft.slug, password: res.data.password })
     setCredsOpen(true)
+    if (openAfterCreate)
+      router.push(`/admin/${projectSlug}/${res.data.draft.slug}`)
     router.refresh()
   }
 
   return (
     <>
-      <Button variant="primary" onClick={start}>
-        Neuer Draft
-      </Button>
       <OperatorDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={onOpenChange}
         title="Neuer Draft"
-        description="Draftly erzeugt ein Passwort. Du siehst es einmal, direkt nach dem Anlegen."
+        description="Draftly erzeugt ein Passwort. Du findest es danach jederzeit auf der Draft-Seite."
         onSubmit={submit}
         actions={
           <>
-            <CancelButton onClick={() => setOpen(false)} />
+            <CancelButton onClick={() => onOpenChange(false)} />
             <Button
               type="submit"
               variant="primary"
@@ -157,7 +186,7 @@ export function NewDraftButton({
           open={credsOpen}
           onOpenChange={setCredsOpen}
           title={`${created.slug} ist angelegt`}
-          description="Das Passwort siehst du nur jetzt. Danach lässt es sich nur noch rotieren."
+          description="Schick Link und Passwort an alle, die den Draft ansehen sollen."
           url={draftUrl(origin, projectSlug, created.slug)}
           password={created.password}
         />

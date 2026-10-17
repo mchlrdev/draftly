@@ -16,11 +16,19 @@ import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
 // Artboard "Neues Projekt": optional title, slug (suggested from the title
-// until typed by hand), reserved/duplicate slugs answered inline.
-export function NewProjectButton({ takenSlugs }: { takenSlugs: string[] }) {
+// until typed by hand), reserved/duplicate slugs answered inline. Opened from
+// the sidebar; mount it fresh per opening (key) so the fields start empty.
+export function NewProjectDialog({
+  open,
+  onOpenChange,
+  takenSlugs,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  takenSlugs: string[]
+}) {
   const router = useRouter()
   const origin = useOrigin()
-  const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
   const [slugTouched, setSlugTouched] = useState(false)
@@ -29,14 +37,6 @@ export function NewProjectButton({ takenSlugs }: { takenSlugs: string[] }) {
 
   const problem = serverError ?? slugProblem(slug, "project", takenSlugs)
   const canSubmit = slug !== "" && !problem && !pending
-
-  const reset = () => {
-    setTitle("")
-    setSlug("")
-    setSlugTouched(false)
-    setServerError(null)
-    setPending(false)
-  }
 
   const submit = async () => {
     if (!canSubmit) return
@@ -47,84 +47,73 @@ export function NewProjectButton({ takenSlugs }: { takenSlugs: string[] }) {
       setServerError(res.error)
       return
     }
-    setOpen(false)
+    onOpenChange(false)
     router.push(`/admin/${res.data.slug}`)
     router.refresh()
   }
 
   return (
-    <>
-      <Button
-        variant="primary"
-        onClick={() => {
-          reset()
-          setOpen(true)
-        }}
-      >
-        Neues Projekt
-      </Button>
-      <OperatorDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Neues Projekt"
-        description="Der Slug steht vorne in jeder Draft-URL. Kleinbuchstaben, Zahlen, Bindestriche."
-        onSubmit={submit}
-        actions={
-          <>
-            <CancelButton onClick={() => setOpen(false)} />
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={!canSubmit}
-              loading={pending}
-            >
-              Anlegen
-            </Button>
-          </>
-        }
-      >
-        <InputGroup className="w-full">
+    <OperatorDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Neues Projekt"
+      description="Der Slug steht vorne in jeder Draft-URL. Kleinbuchstaben, Zahlen, Bindestriche."
+      onSubmit={submit}
+      actions={
+        <>
+          <CancelButton onClick={() => onOpenChange(false)} />
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={!canSubmit}
+            loading={pending}
+          >
+            Anlegen
+          </Button>
+        </>
+      }
+    >
+      <InputGroup className="w-full">
+        <InputField
+          index={0}
+          label="Titel"
+          placeholder="Projektname"
+          value={title}
+          autoFocus
+          onChange={(v) => {
+            setTitle(v)
+            if (!slugTouched) setSlug(slugify(v))
+            setServerError(null)
+          }}
+        />
+        <div className="flex flex-col gap-1">
           <InputField
-            index={0}
-            label="Titel"
-            placeholder="Tanjas Wellness-Oase"
-            value={title}
-            autoFocus
+            index={1}
+            label="Slug"
+            placeholder="project-name"
+            value={slug}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             onChange={(v) => {
-              setTitle(v)
-              if (!slugTouched) setSlug(slugify(v))
+              setSlug(v.trim())
+              setSlugTouched(true)
               setServerError(null)
             }}
+            error={problem ?? undefined}
           />
-          <div className="flex flex-col gap-1">
-            <InputField
-              index={1}
-              label="Slug"
-              placeholder="tanjas-oase"
-              value={slug}
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              onChange={(v) => {
-                setSlug(v.trim())
-                setSlugTouched(true)
-                setServerError(null)
-              }}
-              error={problem ?? undefined}
-            />
-            {!problem && (
-              <p
-                className={cn(
-                  typeClass("caption", "compact"),
-                  "truncate pl-2 text-muted-foreground"
-                )}
-              >
-                {displayUrl(origin)}/{slug || "…"}
-              </p>
-            )}
-          </div>
-        </InputGroup>
-      </OperatorDialog>
-    </>
+          {!problem && (
+            <p
+              className={cn(
+                typeClass("caption", "compact"),
+                "truncate pl-2 text-muted-foreground"
+              )}
+            >
+              {displayUrl(origin)}/{slug || "…"}
+            </p>
+          )}
+        </div>
+      </InputGroup>
+    </OperatorDialog>
   )
 }

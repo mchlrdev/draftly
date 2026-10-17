@@ -43,7 +43,7 @@ export function relativeTime(iso: string, now: Date = new Date()): string {
   return "gerade eben"
 }
 
-/** "tanjas-oase · 2 Drafts". */
+/** "project-name · 2 Drafts". */
 export function projectMeta(project: Pick<Project, "slug" | "drafts">): string {
   return `${project.slug} · ${countLabel(project.drafts.length, "Draft", "Drafts")}`
 }
@@ -57,7 +57,7 @@ export function draftMeta(draft: DraftSummary, now: Date = new Date()): string {
   ].join(" · ")
 }
 
-/** Public draft URL without the scheme, as the UI shows it: "draftly.mchlr.de/tanjas-oase/v4". */
+/** Public draft URL without the scheme, as the UI shows it: "draftly.mchlr.de/project-name/v4". */
 export function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, "")
 }

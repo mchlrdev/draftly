@@ -1,36 +1,20 @@
 import { isOperator, listProjects } from "@/lib/server/queries"
-import { EmptyState, PageHeader } from "@/components/admin/text"
-import { LinkCardList } from "@/components/admin/link-card-list"
-import { NewProjectButton } from "@/components/admin/new-project-dialog"
-import { projectMeta } from "@/lib/admin/format"
+import { EmptyState } from "@/components/admin/text"
 
-// Artboards "Projekte" and "Projekte · Leer".
-export default async function OperatorProjectsPage() {
+// /admin: the sidebar is the navigation, so the page only points at it.
+export default async function OperatorHomePage() {
   if (!(await isOperator())) return null
   const projects = await listProjects()
 
-  return (
-    <>
-      <PageHeader
-        title="Projekte"
-        action={<NewProjectButton takenSlugs={projects.map((p) => p.slug)} />}
-      />
-      {projects.length === 0 ? (
-        <EmptyState title="Noch kein Projekt.">
-          Ein Projekt gruppiert zusammengehörige Drafts. Sein Slug steht vorne
-          in jeder Draft-URL, z. B. draftly.mchlr.de/tanjas-oase/v4.
-        </EmptyState>
-      ) : (
-        <LinkCardList
-          label="Projekte"
-          items={projects.map((p) => ({
-            key: p.slug,
-            href: `/admin/${p.slug}`,
-            title: p.title || p.slug,
-            meta: projectMeta(p),
-          }))}
-        />
-      )}
-    </>
+  return projects.length === 0 ? (
+    <EmptyState title="Noch kein Projekt.">
+      Leg links mit „Neues Projekt“ eins an. Ein Projekt gruppiert Drafts, sein
+      Slug steht vorne in jeder Draft-URL.
+    </EmptyState>
+  ) : (
+    <EmptyState title="Wähle links einen Draft.">
+      Die Seitenleiste zeigt alle Projekte. Klapp eines auf, um seine Drafts zu
+      sehen, oder leg mit „Neuer Draft“ einen an.
+    </EmptyState>
   )
 }

@@ -68,6 +68,8 @@ export interface DraftSnapshot {
   threads: Thread[]
   /** True when the request carries the operator session. */
   operator: boolean
+  /** The name the operator set in /admin; null when unset or not operator. */
+  operatorName: string | null
 }
 
 /** One message on GET /api/d/:project/:draft/events (SSE `event:` name + JSON `data:`). */

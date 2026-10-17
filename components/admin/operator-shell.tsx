@@ -1,35 +1,104 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import {
+  DropdownContent,
+  DropdownMenu,
+  DropdownTrigger,
+} from "@/components/ui/dropdown"
+import { MenuItem } from "@/components/ui/menu-item"
+import { SidebarUserFooter } from "@/components/sidebar-app/user-footer"
+import { BrandLabel } from "@/components/brand-label"
+import { NewProjectDialog } from "@/components/admin/new-project-dialog"
+import { NewDraftDialog } from "@/components/admin/new-draft-dialog"
+import { DeleteProjectDialog } from "@/components/admin/delete-project"
+import { DeleteDraftDialog } from "@/components/admin/delete-draft"
+import {
+  EditDraftDialog,
+  EditProjectDialog,
+} from "@/components/admin/edit-dialogs"
+import { OperatorSettingsDialog } from "@/components/admin/settings-dialog"
+import { TrashIcon } from "@/components/admin/icons"
 import { useIcons } from "@/lib/icon-context"
 import { operatorApi } from "@/lib/admin/api"
-import { BrandLabel } from "@/components/brand-label"
+import { SIDEBAR_MENU_POPUP } from "@/lib/sidebar-menu-grid"
+import { exitFallbackMs, spring } from "@/lib/springs"
+import type { DraftSummary, Project } from "@/lib/api-types"
+import { typeClass } from "@/lib/type-scale"
+import { cn } from "@/lib/utils"
 
-// The operator shell: a 240px sidebar with the one destination (Projekte)
-// and a sign-out row, and the page in the inset beside it.
+// The operator shell. The sidebar is the navigation: "Neues Projekt", then
+// every project as a collapsible row holding its drafts and a "Neuer Draft"
+// row. Each project and draft row carries a ⋯ menu (Bearbeiten, Löschen).
+// The footer shows the operator's name and opens settings and sign-out.
+// Data comes from the server layout; mutations end in router.refresh().
 
-export function OperatorShell({ children }: { children: ReactNode }) {
+type Dialog =
+  | { kind: "new-project" }
+  | { kind: "settings" }
+  | { kind: "new-draft"; project: Project }
+  | { kind: "edit-project"; project: Project }
+  | { kind: "delete-project"; project: Project }
+  | { kind: "edit-draft"; project: Project; draft: DraftSummary }
+  | { kind: "delete-draft"; draft: DraftSummary }
+
+type RouteParams = { project?: string; draft?: string }
+
+export function OperatorShell({
+  projects,
+  operatorName,
+  children,
+}: {
+  projects: Project[]
+  operatorName: string | null
+  children: ReactNode
+}) {
   const router = useRouter()
+  const params = useParams<RouteParams>()
   const icons = useIcons()
+
+  // One dialog at a time. A fresh key per opening resets its fields; the
+  // last kind stays mounted while it closes so the exit can play.
+  const [dialog, setDialog] = useState<{
+    key: number
+    open: boolean
+    which: Dialog | null
+  }>({ key: 0, open: false, which: null })
+  const show = (which: Dialog) =>
+    setDialog((d) => ({ key: d.key + 1, open: true, which }))
+  const setOpen = (open: boolean) => setDialog((d) => ({ ...d, open }))
+
+  // A project's sub-list is open when toggled open, else when it holds the
+  // current page.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({})
+  const isOpen = (slug: string) => toggled[slug] ?? slug === params.project
 
   const logout = async () => {
     await operatorApi.logout()
     router.push("/admin")
     router.refresh()
   }
+
+  const projectSlugs = projects.map((p) => p.slug)
 
   return (
     <SidebarProvider width="15rem" className="min-h-dvh">
@@ -38,31 +107,270 @@ export function OperatorShell({ children }: { children: ReactNode }) {
           <BrandLabel />
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu className="px-3">
+          <SidebarMenu className="px-3" aria-label="Aktionen">
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive
-                icon={icons.folder}
-                render={<Link href="/admin" />}
+                icon={icons.plus}
+                onClick={() => show({ kind: "new-project" })}
               >
-                Projekte
+                Neues Projekt
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
+          <SidebarGroup className="px-3 pt-4">
+            <SidebarGroupLabel>Projekte</SidebarGroupLabel>
+            {projects.length === 0 ? (
+              <p
+                className={cn(
+                  typeClass("body", "compact"),
+                  "px-2 py-1 text-muted-foreground"
+                )}
+              >
+                Noch kein Projekt.
+              </p>
+            ) : (
+              <SidebarMenu aria-label="Projekte">
+                {projects.map((project) => {
+                  const open = isOpen(project.slug)
+                  const title = project.title || project.slug
+                  return (
+                    <SidebarMenuItem key={project.slug}>
+                      <SidebarMenuButton
+                        icon={icons.folder}
+                        isActive={params.project === project.slug}
+                        aria-expanded={open}
+                        onClick={() =>
+                          setToggled((t) => ({ ...t, [project.slug]: !open }))
+                        }
+                      >
+                        {title}
+                      </SidebarMenuButton>
+                      <RowMenu
+                        label={`Aktionen für ${title}`}
+                        onEdit={() => show({ kind: "edit-project", project })}
+                        onDelete={() =>
+                          show({ kind: "delete-project", project })
+                        }
+                      />
+                      <SidebarMenuSub open={open}>
+                        {project.drafts.map((draft) => (
+                          <SidebarMenuSubItem key={draft.slug}>
+                            <SidebarMenuSubButton
+                              isActive={
+                                params.project === project.slug &&
+                                params.draft === draft.slug
+                              }
+                              render={
+                                <Link
+                                  href={`/admin/${project.slug}/${draft.slug}`}
+                                />
+                              }
+                            >
+                              {draft.slug}
+                            </SidebarMenuSubButton>
+                            <RowMenu
+                              label={`Aktionen für ${draft.slug}`}
+                              onEdit={() =>
+                                show({ kind: "edit-draft", project, draft })
+                              }
+                              onDelete={() =>
+                                show({ kind: "delete-draft", draft })
+                              }
+                            />
+                          </SidebarMenuSubItem>
+                        ))}
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            icon={icons.plus}
+                            render={<button type="button" />}
+                            onClick={() => show({ kind: "new-draft", project })}
+                          >
+                            Neuer Draft
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            )}
+          </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarMenu className="px-1">
-            <SidebarMenuItem>
-              <SidebarMenuButton icon={icons["arrow-left"]} onClick={logout}>
-                Abmelden
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <SidebarUserFooter
+            className="px-1"
+            name={operatorName ?? "Name festlegen"}
+            avatar={<Initial name={operatorName} />}
+            menu={
+              <>
+                <MenuItem
+                  index={0}
+                  icon={icons.settings}
+                  label="Einstellungen"
+                  onSelect={later(() => show({ kind: "settings" }))}
+                />
+                <MenuItem
+                  index={1}
+                  icon={icons["arrow-left"]}
+                  label="Abmelden"
+                  onSelect={() => void logout()}
+                />
+              </>
+            }
+          />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <div className="flex w-full flex-col gap-7 px-12 py-9">{children}</div>
       </SidebarInset>
+
+      <ShellDialog
+        key={dialog.key}
+        which={dialog.which}
+        open={dialog.open}
+        onOpenChange={setOpen}
+        projectSlugs={projectSlugs}
+        operatorName={operatorName}
+        params={params}
+      />
     </SidebarProvider>
   )
+}
+
+// A menu hands focus back to its trigger as it closes; opening a dialog
+// after that exit lets the dialog's autofocus field keep focus.
+const later = (fn: () => void) => () => {
+  window.setTimeout(fn, exitFallbackMs(spring.fast))
+}
+
+/** The ⋯ menu on a sidebar row: shown on hover, focus, and while open. */
+function RowMenu({
+  label,
+  onEdit,
+  onDelete,
+}: {
+  label: string
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const icons = useIcons()
+  const More = icons["more-horizontal"]
+  return (
+    <DropdownMenu>
+      <DropdownTrigger
+        render={
+          <SidebarMenuAction showOnHover aria-label={label}>
+            <More />
+          </SidebarMenuAction>
+        }
+      />
+      <DropdownContent
+        className={cn(SIDEBAR_MENU_POPUP, "min-w-[180px]")}
+        align="start"
+        sideOffset={4}
+      >
+        <MenuItem
+          index={0}
+          icon={icons.pencil}
+          label="Bearbeiten"
+          onSelect={later(onEdit)}
+        />
+        <MenuItem
+          index={1}
+          icon={TrashIcon}
+          label="Löschen"
+          onSelect={later(onDelete)}
+        />
+      </DropdownContent>
+    </DropdownMenu>
+  )
+}
+
+/** 20px circle with the operator's initial (or a person glyph's stand-in). */
+function Initial({ name }: { name: string | null }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        typeClass("micro", "compact"),
+        "flex size-5 items-center justify-center rounded-full bg-muted-foreground text-background"
+      )}
+    >
+      {(name?.trim()[0] ?? "?").toUpperCase()}
+    </span>
+  )
+}
+
+function ShellDialog({
+  which,
+  open,
+  onOpenChange,
+  projectSlugs,
+  operatorName,
+  params,
+}: {
+  which: Dialog | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectSlugs: string[]
+  operatorName: string | null
+  params: RouteParams
+}) {
+  if (!which) return null
+  const common = { open, onOpenChange }
+  switch (which.kind) {
+    case "new-project":
+      return <NewProjectDialog {...common} takenSlugs={projectSlugs} />
+    case "settings":
+      return <OperatorSettingsDialog {...common} operatorName={operatorName} />
+    case "new-draft":
+      return (
+        <NewDraftDialog
+          {...common}
+          projectSlug={which.project.slug}
+          takenSlugs={which.project.drafts.map((d) => d.slug)}
+        />
+      )
+    case "edit-project":
+      return (
+        <EditProjectDialog
+          {...common}
+          project={which.project}
+          takenSlugs={projectSlugs}
+        />
+      )
+    case "delete-project":
+      return (
+        <DeleteProjectDialog
+          {...common}
+          target={{
+            slug: which.project.slug,
+            title: which.project.title || which.project.slug,
+            draftCount: which.project.drafts.length,
+          }}
+          leaveTo={params.project === which.project.slug ? "/admin" : undefined}
+        />
+      )
+    case "edit-draft":
+      return (
+        <EditDraftDialog
+          {...common}
+          draft={which.draft}
+          takenSlugs={which.project.drafts.map((d) => d.slug)}
+        />
+      )
+    case "delete-draft":
+      return (
+        <DeleteDraftDialog
+          {...common}
+          draft={which.draft}
+          leaveTo={
+            params.project === which.draft.projectSlug &&
+            params.draft === which.draft.slug
+              ? `/admin/${which.draft.projectSlug}`
+              : undefined
+          }
+        />
+      )
+  }
 }

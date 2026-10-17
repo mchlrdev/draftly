@@ -1,7 +1,8 @@
 "use client"
 
-import { useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { motion } from "motion/react"
 import { Button } from "@/components/ui/button"
 import {
   OperatorDialog,
@@ -10,17 +11,22 @@ import {
 } from "@/components/admin/operator-dialog"
 import { CopyButton } from "@/components/admin/copy-button"
 import { CredentialsDialog } from "@/components/admin/credentials-dialog"
+import { EyeIcon, EyeOffIcon } from "@/components/admin/icons"
 import { LetterboxPicker } from "@/components/admin/letterbox-picker"
 import { cardClass, semibold } from "@/components/admin/text"
 import { useOrigin } from "@/components/admin/use-origin"
 import { operatorApi } from "@/lib/admin/api"
 import { displayUrl, draftUrl } from "@/lib/admin/format"
 import type { Draft } from "@/lib/api-types"
+import { spring } from "@/lib/springs"
+import { useSize } from "@/lib/size-context"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
 // The "Share" card of artboard "Draft · Aktionen": link (copy), password
-// (rotate → "Passwort rotieren" → "Passwort rotiert"), letterbox (change).
+// (masked; reveal, copy without revealing, rotate → "Passwort rotieren" →
+// "Passwort rotiert"), letterbox (change). The password is read from the API
+// on mount (ADR 0002 amendment); drafts from before that have none stored.
 export function ShareCard({ draft }: { draft: Draft }) {
   const router = useRouter()
   const origin = useOrigin()
@@ -31,6 +37,22 @@ export function ShareCard({ draft }: { draft: Draft }) {
   const [rotateError, setRotateError] = useState<string | null>(null)
   const [password, setPassword] = useState<string | null>(null)
   const [credsOpen, setCredsOpen] = useState(false)
+
+  // undefined while loading, null when not stored, an Error when unreadable.
+  const [stored, setStored] = useState<string | null | undefined | Error>(
+    undefined
+  )
+  const [revealed, setRevealed] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void operatorApi.readPassword(draft.projectSlug, draft.slug).then((res) => {
+      if (!alive) return
+      setStored(res.ok ? res.data.password : new Error(res.error))
+    })
+    return () => {
+      alive = false
+    }
+  }, [draft.projectSlug, draft.slug])
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [letterbox, setLetterbox] = useState(draft.letterbox)
@@ -47,16 +69,15 @@ export function ShareCard({ draft }: { draft: Draft }) {
     }
     setRotateOpen(false)
     setPassword(res.data.password)
+    setStored(res.data.password)
     setCredsOpen(true)
   }
 
   const saveLetterbox = async () => {
     if (letterbox === saved.current) return
-    const res = await operatorApi.updateDraft(
-      draft.projectSlug,
-      draft.slug,
-      letterbox
-    )
+    const res = await operatorApi.updateDraft(draft.projectSlug, draft.slug, {
+      letterbox,
+    })
     if (!res.ok) {
       setLetterboxError(res.error)
       setLetterbox(saved.current)
@@ -88,20 +109,51 @@ export function ShareCard({ draft }: { draft: Draft }) {
       <Row
         label="Passwort"
         action={
-          <Button
-            variant="ghost"
-            className="text-foreground"
-            style={semibold}
-            onClick={() => {
-              setRotateError(null)
-              setRotateOpen(true)
-            }}
-          >
-            Rotieren
-          </Button>
+          <>
+            {typeof stored === "string" && (
+              <CopyButton
+                variant="ghost"
+                className="text-foreground"
+                text={stored}
+                aria-label="Passwort kopieren"
+              />
+            )}
+            <Button
+              variant="ghost"
+              className="text-foreground"
+              style={semibold}
+              onClick={() => {
+                setRotateError(null)
+                setRotateOpen(true)
+              }}
+            >
+              Rotieren
+            </Button>
+          </>
         }
       >
-        Nur beim Anlegen sichtbar · danach rotieren
+        {stored === undefined ? (
+          <span className="text-muted-foreground">…</span>
+        ) : stored instanceof Error ? (
+          <span className="text-destructive">{stored.message}</span>
+        ) : stored === null ? (
+          <span className="text-muted-foreground">
+            Nicht gespeichert · einmal rotieren
+          </span>
+        ) : (
+          <span className="flex min-w-0 items-center gap-1">
+            <span
+              className="truncate tabular-nums"
+              data-testid="draft-password"
+            >
+              {revealed ? stored : maskPassword(stored)}
+            </span>
+            <RevealToggle
+              revealed={revealed}
+              onToggle={() => setRevealed((r) => !r)}
+            />
+          </span>
+        )}
       </Row>
       <Row
         label="Letterbox"
@@ -189,7 +241,66 @@ function Row({
       >
         {children}
       </div>
-      <div className="flex w-28 shrink-0 justify-end">{action}</div>
+      <div className="flex w-44 shrink-0 justify-end gap-1">{action}</div>
     </div>
+  )
+}
+
+/** "k7mq-2xpr-9tnd" → "••••-••••-••••" (same shape, nothing readable). */
+function maskPassword(password: string): string {
+  return password.replace(/[^-]/g, "•")
+}
+
+// Eye / eye-off in one icon cell, crossfading like the system's icon swaps:
+// the arriving glyph on the fast tier, the leaving one on its exit tween.
+const ICON_SHOWN = { opacity: 1, filter: "blur(0px)", scale: 1 }
+const ICON_HIDDEN = { opacity: 0, filter: "blur(4px)", scale: 0.6 }
+const iconEnter = {
+  type: "tween" as const,
+  duration: spring.fast.duration,
+  ease: "easeOut" as const,
+}
+const iconLeave = {
+  type: "tween" as const,
+  ...spring.fast.exit,
+  ease: "easeIn" as const,
+}
+
+function RevealToggle({
+  revealed,
+  onToggle,
+}: {
+  revealed: boolean
+  onToggle: () => void
+}) {
+  const { icon } = useSize()
+  return (
+    <Button
+      variant="ghost"
+      size="icon-compact"
+      aria-label={revealed ? "Passwort verbergen" : "Passwort zeigen"}
+      aria-pressed={revealed}
+      onClick={onToggle}
+      className="shrink-0"
+    >
+      <span className="inline-grid" style={{ width: icon, height: icon }}>
+        <motion.span
+          className="col-start-1 row-start-1 flex"
+          initial={false}
+          animate={revealed ? ICON_HIDDEN : ICON_SHOWN}
+          transition={revealed ? iconLeave : iconEnter}
+        >
+          <EyeIcon size={icon} strokeWidth={1.5} />
+        </motion.span>
+        <motion.span
+          className="col-start-1 row-start-1 flex"
+          initial={false}
+          animate={revealed ? ICON_SHOWN : ICON_HIDDEN}
+          transition={revealed ? iconEnter : iconLeave}
+        >
+          <EyeOffIcon size={icon} strokeWidth={1.5} />
+        </motion.span>
+      </span>
+    </Button>
   )
 }

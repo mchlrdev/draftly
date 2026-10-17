@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation"
 import { Reorder, useDragControls } from "motion/react"
 import { Button } from "@/components/ui/button"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select"
+import {
   OperatorDialog,
   CancelButton,
   DangerButton,
@@ -13,14 +19,16 @@ import {
 import { PageFormDialog } from "@/components/admin/page-form-dialog"
 import { EmptyState, semibold } from "@/components/admin/text"
 import { operatorApi } from "@/lib/admin/api"
-import { displayLabel } from "@/lib/admin/format"
+import { designWidthProblem } from "@/lib/admin/format"
 import { moveBy, sameOrder } from "@/lib/admin/reorder"
-import type { Draft, Page } from "@/lib/api-types"
+import type { DisplayMode, Draft, Page } from "@/lib/api-types"
+import { useSize } from "@/lib/size-context"
 import { spring } from "@/lib/springs"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
-// "Seiten" of artboard "Draft · Aktionen": upload, replace, delete, and
+// "Seiten" of artboard "Draft · Aktionen": upload, replace, delete, display
+// mode and design width right on the row (saved on change, optimistic), and
 // reorder. Reorder by dragging the grip, or focus the grip and use the arrow
 // keys; either way the new order is sent once it settles.
 // Rows carry several actions each, so they get no fluid hover (a wrong
@@ -133,6 +141,8 @@ export function PagesSection({ draft }: { draft: Draft }) {
             <PageRow
               key={page.id}
               page={page}
+              projectSlug={draft.projectSlug}
+              draftSlug={draft.slug}
               position={i}
               total={pages.length}
               onDrop={() => void commit(order)}
@@ -184,6 +194,8 @@ export function PagesSection({ draft }: { draft: Draft }) {
 
 function PageRow({
   page,
+  projectSlug,
+  draftSlug,
   position,
   total,
   onDrop,
@@ -192,6 +204,8 @@ function PageRow({
   onDelete,
 }: {
   page: Page
+  projectSlug: string
+  draftSlug: string
   position: number
   total: number
   onDrop: () => void
@@ -199,8 +213,62 @@ function PageRow({
   onReplace: () => void
   onDelete: () => void
 }) {
+  const router = useRouter()
   const controls = useDragControls()
   const [dragging, setDragging] = useState(false)
+
+  // Display and width save on change. Local state shows the pick at once;
+  // a failed save puts the server value back and says why under the row.
+  const [display, setDisplay] = useState<DisplayMode>(page.display)
+  const [width, setWidth] = useState(String(page.designWidth))
+  const [error, setError] = useState<string | null>(null)
+  const serverKey = `${page.display}:${page.designWidth}`
+  const [syncedKey, setSyncedKey] = useState(serverKey)
+  if (syncedKey !== serverKey) {
+    setSyncedKey(serverKey)
+    setDisplay(page.display)
+    setWidth(String(page.designWidth))
+  }
+
+  const save = async (patch: {
+    display?: DisplayMode
+    designWidth?: number
+  }) => {
+    setError(null)
+    const res = await operatorApi.updatePage(
+      projectSlug,
+      draftSlug,
+      page.id,
+      patch
+    )
+    if (!res.ok) {
+      setDisplay(page.display)
+      setWidth(String(page.designWidth))
+      setError(res.error)
+      return
+    }
+    router.refresh()
+  }
+
+  const changeDisplay = (next: string) => {
+    if (next !== "fixed" && next !== "fill") return
+    if (next === display) return
+    setDisplay(next)
+    void save({ display: next })
+  }
+
+  const commitWidth = () => {
+    const value = width.trim()
+    if (value === String(page.designWidth)) return
+    const problem = designWidthProblem(value, "fixed")
+    if (problem) {
+      setError(problem)
+      setWidth(String(page.designWidth))
+      return
+    }
+    setWidth(String(Number(value)))
+    void save({ designWidth: Number(value) })
+  }
 
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
@@ -224,62 +292,143 @@ function PageRow({
       }}
       transition={spring.moderate}
       className={cn(
-        "relative flex h-14 items-center gap-3 rounded-xl bg-card px-4",
+        "relative flex flex-col rounded-xl bg-card px-4",
         "shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(0_0_0/0.04)]",
         dragging &&
           "z-10 shadow-[0_0_0_1px_var(--border),0_8px_24px_rgb(0_0_0/0.10)]"
       )}
     >
-      <button
-        type="button"
-        aria-label={`„${page.name}“ verschieben, Position ${position + 1} von ${total}. Pfeiltasten hoch und runter.`}
-        onPointerDown={(e: PointerEvent<HTMLButtonElement>) => {
-          e.preventDefault()
-          controls.start(e)
-        }}
-        onKeyDown={onKeyDown}
-        className={cn(
-          "-ml-1 flex h-7 w-6 shrink-0 touch-none items-center justify-center rounded-md outline-none",
-          "transition-colors duration-80 hover:bg-hover focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]",
-          dragging ? "cursor-grabbing" : "cursor-grab"
-        )}
-      >
-        <Grip />
-      </button>
-      <span
-        className={cn(
-          typeClass("subtitle", "compact"),
-          "min-w-0 grow truncate text-foreground"
-        )}
-        style={semibold}
-      >
-        {page.name}
-      </span>
-      <span
-        className={cn(
-          typeClass("body", "compact"),
-          "w-22 shrink-0 text-muted-foreground"
-        )}
-      >
-        {displayLabel(page)}
-      </span>
-      <Button
-        variant="ghost"
-        className="w-22 shrink-0"
-        onClick={onReplace}
-        aria-label={`„${page.name}“ ersetzen`}
-      >
-        Ersetzen
-      </Button>
-      <Button
-        variant="ghost"
-        className="shrink-0 text-destructive hover:text-destructive"
-        onClick={onDelete}
-        aria-label={`„${page.name}“ löschen`}
-      >
-        Löschen
-      </Button>
+      <div className="flex h-14 items-center gap-3">
+        <button
+          type="button"
+          aria-label={`„${page.name}“ verschieben, Position ${position + 1} von ${total}. Pfeiltasten hoch und runter.`}
+          onPointerDown={(e: PointerEvent<HTMLButtonElement>) => {
+            e.preventDefault()
+            controls.start(e)
+          }}
+          onKeyDown={onKeyDown}
+          className={cn(
+            "-ml-1 flex h-7 w-6 shrink-0 touch-none items-center justify-center rounded-md outline-none",
+            "transition-colors duration-80 hover:bg-hover focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]",
+            dragging ? "cursor-grabbing" : "cursor-grab"
+          )}
+        >
+          <Grip />
+        </button>
+        <span
+          className={cn(
+            typeClass("subtitle", "compact"),
+            "min-w-0 grow truncate text-foreground"
+          )}
+          style={semibold}
+        >
+          {page.name}
+        </span>
+        <Select value={display} onValueChange={changeDisplay}>
+          <SelectTrigger
+            variant="borderless"
+            aria-label={`Darstellung von „${page.name}“`}
+            className="w-24 min-w-0 shrink-0"
+          />
+          <SelectContent>
+            <SelectItem index={0} value="fixed">
+              Fix
+            </SelectItem>
+            <SelectItem index={1} value="fill">
+              Fill
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="flex w-24 shrink-0 items-center gap-1">
+          {display === "fixed" && (
+            <WidthField
+              value={width}
+              onChange={setWidth}
+              onCommit={commitWidth}
+              onCancel={() => setWidth(String(page.designWidth))}
+              label={`Designbreite von „${page.name}“ in px`}
+            />
+          )}
+        </span>
+        <Button
+          variant="ghost"
+          className="w-22 shrink-0"
+          onClick={onReplace}
+          aria-label={`„${page.name}“ ersetzen`}
+        >
+          Ersetzen
+        </Button>
+        <Button
+          variant="ghost"
+          className="shrink-0 text-destructive hover:text-destructive"
+          onClick={onDelete}
+          aria-label={`„${page.name}“ löschen`}
+        >
+          Löschen
+        </Button>
+      </div>
+      {error && (
+        <p
+          role="alert"
+          className={cn(
+            typeClass("caption", "compact"),
+            "-mt-2 pb-3 pl-9 text-destructive"
+          )}
+        >
+          {error}
+        </p>
+      )}
     </Reorder.Item>
+  )
+}
+
+/** Design width in px: saves on blur or Enter, Escape puts the saved value back. */
+function WidthField({
+  value,
+  onChange,
+  onCommit,
+  onCancel,
+  label,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onCommit: () => void
+  onCancel: () => void
+  label: string
+}) {
+  const { field } = useSize()
+  return (
+    <>
+      <input
+        type="text"
+        inputMode="numeric"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault()
+            e.currentTarget.blur()
+          } else if (e.key === "Escape") {
+            e.preventDefault()
+            onCancel()
+          }
+        }}
+        className={cn(
+          field,
+          "h-7 w-16 rounded-md bg-transparent px-2 text-right text-foreground tabular-nums outline-none",
+          "shadow-[inset_0_0_0_1px_var(--border)] transition-colors duration-80 hover:bg-hover",
+          "focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn(typeClass("body", "compact"), "text-muted-foreground")}
+      >
+        px
+      </span>
+    </>
   )
 }
 
