@@ -46,7 +46,7 @@ export function adminPassword(): string | null {
   return process.env.NODE_ENV === "production" ? null : "draftly"
 }
 
-export function checkAdminPassword(password: unknown): boolean {
+export function checkOperatorPassword(password: unknown): boolean {
   const expected = adminPassword()
   if (!expected || typeof password !== "string") return false
   return safeEqual(password, expected)

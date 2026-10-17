@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { InputField, InputGroup } from "@/components/ui/input-group";
 import { BrandLabel } from "@/components/admin/brand-label";
 import { cardClass, semibold } from "@/components/admin/text";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { typeClass } from "@/lib/type-scale";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function LoginForm() {
     e.preventDefault();
     if (!password || pending) return;
     setPending(true);
-    const res = await adminApi.login(password);
+    const res = await operatorApi.login(password);
     if (res.ok) {
       router.refresh();
       return;

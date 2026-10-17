@@ -59,6 +59,20 @@ describe("operator session", () => {
     expect((await client().post("/api/admin/login", { password: "test-secret" })).status).toBe(204)
   })
 
+  it("keys the limit on the last X-Forwarded-For hop, so a spoofed first entry does not help", async () => {
+    const c = client()
+    const statuses: number[] = []
+    for (let i = 0; i < 11; i++) {
+      const res = await c.request("/api/admin/login", {
+        method: "POST",
+        json: { password: "x" },
+        headers: { "x-forwarded-for": `203.0.113.${i + 1}, ${c.ip}` },
+      })
+      statuses.push(res.status)
+    }
+    expect(statuses[10]).toBe(429)
+  })
+
   it("marks every response noindex", async () => {
     const res = await client().get("/api/admin/session")
     expect(res.headers.get("x-robots-tag")).toBe("noindex")

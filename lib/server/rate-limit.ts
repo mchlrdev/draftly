@@ -16,10 +16,15 @@ function limitFor(bucket: Bucket): number {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULTS[bucket]
 }
 
+/**
+ * The address the one trusted proxy (Traefik) saw. It appends the peer to
+ * X-Forwarded-For, so only the LAST entry is trustworthy; earlier entries are
+ * whatever the client sent and must not pick the rate-limit bucket.
+ */
 export function clientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for")
-  const first = xff?.split(",")[0]?.trim()
-  return first || "local"
+  const last = xff?.split(",").at(-1)?.trim()
+  return last || "local"
 }
 
 /** Counts one hit; false when the IP is over the limit for this window. */

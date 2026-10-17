@@ -7,7 +7,7 @@ import { PagesSection } from "@/components/admin/pages-section";
 import { DeleteDraft } from "@/components/admin/delete-draft";
 
 // Artboards "Draft" / "Draft · Aktionen" and the dialogs opened from it.
-export default async function AdminDraftPage({
+export default async function OperatorDraftPage({
   params,
 }: {
   params: Promise<{ project: string; draft: string }>;

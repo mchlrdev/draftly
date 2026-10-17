@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InputField, InputGroup } from "@/components/ui/input-group";
-import { AdminDialog, CancelButton } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton } from "@/components/admin/operator-dialog";
 import { useOrigin } from "@/components/admin/use-origin";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { slugProblem, slugify } from "@/lib/admin/slug";
 import { displayUrl } from "@/lib/admin/format";
 import { typeClass } from "@/lib/type-scale";
@@ -38,7 +38,7 @@ export function NewProjectButton({ takenSlugs }: { takenSlugs: string[] }) {
   const submit = async () => {
     if (!canSubmit) return;
     setPending(true);
-    const res = await adminApi.createProject(slug, title.trim() || undefined);
+    const res = await operatorApi.createProject(slug, title.trim() || undefined);
     if (!res.ok) {
       setPending(false);
       setServerError(res.error);
@@ -60,7 +60,7 @@ export function NewProjectButton({ takenSlugs }: { takenSlugs: string[] }) {
       >
         Neues Projekt
       </Button>
-      <AdminDialog
+      <OperatorDialog
         open={open}
         onOpenChange={setOpen}
         title="Neues Projekt"
@@ -111,7 +111,7 @@ export function NewProjectButton({ takenSlugs }: { takenSlugs: string[] }) {
             )}
           </div>
         </InputGroup>
-      </AdminDialog>
+      </OperatorDialog>
     </>
   );
 }

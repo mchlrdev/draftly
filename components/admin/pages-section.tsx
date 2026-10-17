@@ -4,10 +4,10 @@ import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Reorder, useDragControls } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { AdminDialog, CancelButton, DangerButton, ErrorText } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton, DangerButton, ErrorText } from "@/components/admin/operator-dialog";
 import { PageFormDialog } from "@/components/admin/page-form-dialog";
 import { EmptyState, semibold } from "@/components/admin/text";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { displayLabel } from "@/lib/admin/format";
 import { moveBy, sameOrder } from "@/lib/admin/reorder";
 import type { Draft, Page } from "@/lib/api-types";
@@ -51,7 +51,7 @@ export function PagesSection({ draft }: { draft: Draft }) {
   const commit = async (next: string[]) => {
     if (sameOrder(next, serverOrder)) return;
     setReorderError(null);
-    const res = await adminApi.reorderPages(draft.projectSlug, draft.slug, next);
+    const res = await operatorApi.reorderPages(draft.projectSlug, draft.slug, next);
     if (!res.ok) {
       setReorderError(res.error);
       setOrder(serverOrder);
@@ -71,7 +71,7 @@ export function PagesSection({ draft }: { draft: Draft }) {
   const deletePage = async () => {
     if (!toDelete) return;
     setDeleting(true);
-    const res = await adminApi.deletePage(draft.projectSlug, draft.slug, toDelete.id);
+    const res = await operatorApi.deletePage(draft.projectSlug, draft.slug, toDelete.id);
     setDeleting(false);
     if (!res.ok) {
       setDeleteError(res.error);
@@ -136,7 +136,7 @@ export function PagesSection({ draft }: { draft: Draft }) {
         page={form.page}
       />
 
-      <AdminDialog
+      <OperatorDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={toDelete ? `„${toDelete.name}“ löschen?` : "Seite löschen?"}
@@ -152,7 +152,7 @@ export function PagesSection({ draft }: { draft: Draft }) {
         }
       >
         {deleteError && <ErrorText>{deleteError}</ErrorText>}
-      </AdminDialog>
+      </OperatorDialog>
     </section>
   );
 }

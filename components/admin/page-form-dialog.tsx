@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InputField, InputGroup } from "@/components/ui/input-group";
 import { Tabs, TabItem, TabsList } from "@/components/ui/tabs";
-import { AdminDialog, CancelButton, ErrorText, FieldBlock } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton, ErrorText, FieldBlock } from "@/components/admin/operator-dialog";
 import { semibold } from "@/components/admin/text";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import {
   designWidthProblem,
   externalUrlMessage,
@@ -77,8 +77,8 @@ export function PageFormDialog({
       designWidth: display === "fixed" ? Number(width) : Number(width) || DEFAULT_DESIGN_WIDTH,
     };
     const res = page
-      ? await adminApi.replacePage(projectSlug, draftSlug, page.id, form)
-      : await adminApi.uploadPage(projectSlug, draftSlug, form);
+      ? await operatorApi.replacePage(projectSlug, draftSlug, page.id, form)
+      : await operatorApi.uploadPage(projectSlug, draftSlug, form);
     setPending(false);
     if (!res.ok) {
       setServerError(res.error);
@@ -89,7 +89,7 @@ export function PageFormDialog({
   };
 
   return (
-    <AdminDialog
+    <OperatorDialog
       wide
       open={open}
       onOpenChange={onOpenChange}
@@ -215,6 +215,6 @@ export function PageFormDialog({
           </InputGroup>
         </div>
       </div>
-    </AdminDialog>
+    </OperatorDialog>
   );
 }

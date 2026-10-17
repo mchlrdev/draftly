@@ -5,7 +5,7 @@ import { NewProjectButton } from "@/components/admin/new-project-dialog";
 import { projectMeta } from "@/lib/admin/format";
 
 // Artboards "Projekte" and "Projekte · Leer".
-export default async function AdminProjectsPage() {
+export default async function OperatorProjectsPage() {
   if (!(await isOperator())) return null;
   const projects = await listProjects();
 

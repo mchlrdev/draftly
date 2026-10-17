@@ -28,13 +28,13 @@ All JSON. Errors are `{ "error": "<German, user-facing message>" }` with the sta
 | POST | `/api/admin/projects/:project/drafts` | `{ slug, letterbox? }` | 201 `{ draft: Draft, password }` — the only time plaintext is returned |
 | GET | `/api/admin/projects/:project/drafts/:draft` | — | 200 `Draft` |
 | PATCH | `/api/admin/projects/:project/drafts/:draft` | `{ letterbox }` (`#RRGGBB`) | 200 `Draft` |
-| POST | `/api/admin/projects/:project/drafts/:draft/rotate` | — | 200 `{ password }` |
-| DELETE | `/api/admin/projects/:project/drafts/:draft` | — | 204 |
+| POST | `/api/admin/projects/:project/drafts/:draft/rotate` | — | 200 `{ password }`. Ends the draft's open event streams |
+| DELETE | `/api/admin/projects/:project/drafts/:draft` | — | 204. Ends the draft's open event streams |
 | POST | `/api/admin/projects/:project/drafts/:draft/pages` | multipart: `file`, `name`, `display` (`fixed`\|`fill`), `designWidth` (default 1440) | 201 `Page`. Contains `http:`/`https:` → 422 |
 | PUT | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | multipart: `file` (+ optional `name`, `display`, `designWidth`) | 200 `Page` — same id, threads kept |
 | PATCH | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | `{ name?, display?, designWidth? }` | 200 `Page` |
 | PUT | `/api/admin/projects/:project/drafts/:draft/pages` | `{ order: pageId[] }` | 200 `Page[]` |
-| DELETE | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | — | 204, threads deleted |
+| DELETE | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | — | 204, threads deleted (one `thread.deleted` event each) |
 
 Unknown project/draft/page → 404. Slugs match `SLUG_PATTERN`; project slugs not in `RESERVED_SLUGS`.
 
@@ -53,9 +53,13 @@ Access = valid `draftly_d_<id>` cookie **or** operator session. Without access �
 | DELETE | `/api/d/:project/:draft/comments/:commentId` | `{ clientId }` | 200 `Comment` (soft delete: `deletedAt` set, `body` ""). Other clientId and not operator → 403 |
 | PATCH | `/api/d/:project/:draft/threads/:threadId` | `{ status }` | 200 `Thread`. Operator only → else 403 |
 | DELETE | `/api/d/:project/:draft/threads/:threadId` | — | 204. Operator only → else 403 |
-| GET | `/api/d/:project/:draft/events` | — | `text/event-stream`. Each message: `event: <DraftEvent.type>` + `data: <DraftEvent JSON>`. Comment `: ping` every 15 s. |
+| GET | `/api/d/:project/:draft/events` | — | `text/event-stream`. Each message: `event: <DraftEvent.type>` + `data: <DraftEvent JSON>`. Comment `: ping` every 15 s. The server ends the stream when the draft's password is rotated or the draft is deleted; the client reconnects, and its snapshot reload answers 401/404. |
 
 Body is plain text, 1–5000 chars after trim (else 422). `authorName` 1–60 chars after trim. `x`, `y` finite numbers ≥ 0.
+
+`clientId` is a random id per browser and the credential for editing/deleting own comments. Requests send it raw; responses, snapshots and events never contain it. Each `Comment` carries `authorKey` = lowercase hex SHA-256 of its author's clientId instead; the client hashes its own clientId to recognise its comments.
+
+Rate limits key on the client IP = the **last** `X-Forwarded-For` entry (appended by the one trusted proxy, Traefik), else `local`.
 
 ## Pages (UI routes)
 

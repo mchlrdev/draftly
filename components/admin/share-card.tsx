@@ -3,13 +3,13 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { AdminDialog, CancelButton, ErrorText } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton, ErrorText } from "@/components/admin/operator-dialog";
 import { CopyButton } from "@/components/admin/copy-button";
 import { CredentialsDialog } from "@/components/admin/credentials-dialog";
 import { LetterboxPicker } from "@/components/admin/letterbox-picker";
 import { cardClass, semibold } from "@/components/admin/text";
 import { useOrigin } from "@/components/admin/use-origin";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { displayUrl, draftUrl } from "@/lib/admin/format";
 import type { Draft } from "@/lib/api-types";
 import { typeClass } from "@/lib/type-scale";
@@ -35,7 +35,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
 
   const rotate = async () => {
     setRotating(true);
-    const res = await adminApi.rotatePassword(draft.projectSlug, draft.slug);
+    const res = await operatorApi.rotatePassword(draft.projectSlug, draft.slug);
     setRotating(false);
     if (!res.ok) {
       setRotateError(res.error);
@@ -48,7 +48,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
 
   const saveLetterbox = async () => {
     if (letterbox === saved.current) return;
-    const res = await adminApi.updateDraft(draft.projectSlug, draft.slug, letterbox);
+    const res = await operatorApi.updateDraft(draft.projectSlug, draft.slug, letterbox);
     if (!res.ok) {
       setLetterboxError(res.error);
       setLetterbox(saved.current);
@@ -104,7 +104,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
         </span>
       </Row>
 
-      <AdminDialog
+      <OperatorDialog
         open={rotateOpen}
         onOpenChange={setRotateOpen}
         title="Passwort rotieren?"
@@ -120,7 +120,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
         }
       >
         {rotateError && <ErrorText>{rotateError}</ErrorText>}
-      </AdminDialog>
+      </OperatorDialog>
 
       {password && (
         <CredentialsDialog

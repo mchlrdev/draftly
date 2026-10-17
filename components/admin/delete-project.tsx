@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InputField, InputGroup } from "@/components/ui/input-group";
-import { AdminDialog, CancelButton, DangerButton, ErrorText } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton, DangerButton, ErrorText } from "@/components/admin/operator-dialog";
 import { DangerZone, semibold } from "@/components/admin/text";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { deleteProjectAction, deleteProjectText } from "@/lib/admin/format";
 
 // Artboard "Projekt löschen". An empty project goes after a plain confirm.
@@ -34,7 +34,7 @@ export function DeleteProject({ slug, title, draftCount }: { slug: string; title
   const submit = async () => {
     if (!canSubmit) return;
     setPending(true);
-    const res = await adminApi.deleteProject(slug, needsForce);
+    const res = await operatorApi.deleteProject(slug, needsForce);
     if (res.ok) {
       setOpen(false);
       router.push("/admin");
@@ -58,7 +58,7 @@ export function DeleteProject({ slug, title, draftCount }: { slug: string; title
           Projekt löschen
         </Button>
       </DangerZone>
-      <AdminDialog
+      <OperatorDialog
         open={open}
         onOpenChange={setOpen}
         title="Projekt löschen?"
@@ -97,7 +97,7 @@ export function DeleteProject({ slug, title, draftCount }: { slug: string; title
           </InputGroup>
         )}
         {!needsForce && error && <ErrorText>{error}</ErrorText>}
-      </AdminDialog>
+      </OperatorDialog>
     </>
   );
 }

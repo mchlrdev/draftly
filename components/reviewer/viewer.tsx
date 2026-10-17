@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { DraftSnapshot, ThreadStatus } from "@/lib/api-types";
 import { numberedThreads, openCount, useDraftState } from "@/hooks/use-draft-state";
 import { useDraftEvents } from "@/hooks/use-draft-events";
-import { useIdentity } from "@/lib/reviewer/identity";
+import { useAuthorKey, useIdentity } from "@/lib/reviewer/identity";
 import { useSize } from "@/lib/size-context";
 import { cn } from "@/lib/utils";
 import type { Point } from "@/lib/reviewer/geometry";
@@ -51,10 +51,12 @@ export function Viewer({
   const openThread = numbered.find((n) => n.thread.id === openThreadId) ?? null;
   const pins = numbered.filter((n) => n.thread.status === filter || n.thread.id === openThreadId);
 
+  const clientId = identity?.clientId ?? null;
+  const authorKey = useAuthorKey(clientId);
   const authorName = identity?.name || (state.operator ? "Operator" : "");
   const viewerContext = useMemo<ViewerContextValue>(
-    () => ({ draftRef, dispatch, operator: state.operator, clientId: identity?.clientId ?? null, authorName }),
-    [draftRef, dispatch, state.operator, identity?.clientId, authorName],
+    () => ({ draftRef, dispatch, operator: state.operator, clientId, authorKey, authorName }),
+    [draftRef, dispatch, state.operator, clientId, authorKey, authorName],
   );
 
   const closeComposer = useCallback(() => {

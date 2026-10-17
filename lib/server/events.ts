@@ -5,7 +5,13 @@ import type { DraftEvent } from "@/lib/api-types"
 // In-process pub/sub keyed by draft id. Kept on globalThis so dev HMR and
 // separately bundled route handlers share one registry.
 
-type Listener = (event: DraftEvent) => void
+/** Internal only, never sent to clients: the stream must end (draft password
+ *  rotated or draft deleted), so a reconnect re-checks access. */
+export const CLOSE_STREAM = { type: "stream.close" } as const
+
+export type BusMessage = DraftEvent | typeof CLOSE_STREAM
+
+type Listener = (message: BusMessage) => void
 
 const g = globalThis as unknown as { __draftlyEvents?: Map<string, Set<Listener>> }
 const channels = (g.__draftlyEvents ??= new Map())
@@ -21,9 +27,18 @@ export function subscribe(draftId: string, listener: Listener): () => void {
 }
 
 export function publish(draftId: string, event: DraftEvent): void {
-  for (const listener of channels.get(draftId) ?? []) {
+  send(draftId, event)
+}
+
+/** Ends every open event stream of this draft. */
+export function closeStreams(draftId: string): void {
+  send(draftId, CLOSE_STREAM)
+}
+
+function send(draftId: string, message: BusMessage): void {
+  for (const listener of [...(channels.get(draftId) ?? [])]) {
     try {
-      listener(event)
+      listener(message)
     } catch (err) {
       console.error(err)
     }

@@ -39,7 +39,9 @@ export interface Comment {
   id: string;
   threadId: string;
   authorName: string;
-  clientId: string;
+  /** Lowercase hex SHA-256 of the author's clientId. The client hashes its own
+   *  clientId to recognise "mine"; the raw clientId is never sent out. */
+  authorKey: string;
   /** Plain text. Empty once deleted. */
   body: string;
   createdAt: string;

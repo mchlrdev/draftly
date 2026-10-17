@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { AdminDialog, FieldBlock } from "@/components/admin/admin-dialog";
+import { OperatorDialog, FieldBlock } from "@/components/admin/operator-dialog";
 import { CopyButton } from "@/components/admin/copy-button";
 import { semibold } from "@/components/admin/text";
 import { credentialsText, displayUrl } from "@/lib/admin/format";
@@ -27,7 +27,7 @@ export function CredentialsDialog({
   password: string;
 }) {
   return (
-    <AdminDialog
+    <OperatorDialog
       open={open}
       onOpenChange={onOpenChange}
       title={title}
@@ -65,6 +65,6 @@ export function CredentialsDialog({
           <CopyButton text={password} aria-label="Passwort kopieren" className="shrink-0 bg-card" />
         </div>
       </FieldBlock>
-    </AdminDialog>
+    </OperatorDialog>
   );
 }

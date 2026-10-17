@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { describe, expect, it } from "vitest"
 import type { Comment, DraftSnapshot, Page, Thread } from "@/lib/api-types"
 import { FIXTURE_HTML, client, pageForm, reviewer, setupDraft } from "./helpers"
@@ -7,6 +8,8 @@ async function withReviewer() {
   const r = await reviewer(ctx.project, ctx.draft, ctx.password)
   return { ...ctx, r }
 }
+
+const authorKey = (clientId: string) => createHash("sha256").update(clientId).digest("hex")
 
 const pin = { x: 412.5, y: 1830, body: "Logo größer?", authorName: "Tanja", clientId: "browser-a" }
 
@@ -18,7 +21,7 @@ describe("threads", () => {
     const thread = (await res.json()) as Thread
     expect(thread).toMatchObject({ pageId, x: 412.5, y: 1830, status: "open", resolvedAt: null })
     expect(thread.comments).toHaveLength(1)
-    expect(thread.comments[0]).toMatchObject({ body: "Logo größer?", authorName: "Tanja", clientId: "browser-a", editedAt: null, deletedAt: null })
+    expect(thread.comments[0]).toMatchObject({ body: "Logo größer?", authorName: "Tanja", authorKey: authorKey("browser-a"), editedAt: null, deletedAt: null })
 
     const snap = (await (await r.get(api)).json()) as DraftSnapshot
     expect(snap.threads).toEqual([thread])
@@ -110,7 +113,8 @@ describe("comments", () => {
     const res = await r.post(`${api}/threads/${thread.id}/comments`, { body: "Antwort", authorName: "Pascal", clientId: "browser-b" })
     expect(res.status).toBe(201)
     const reply = (await res.json()) as Comment
-    expect(reply).toMatchObject({ threadId: thread.id, body: "Antwort", authorName: "Pascal", clientId: "browser-b" })
+    expect(reply).toMatchObject({ threadId: thread.id, body: "Antwort", authorName: "Pascal", authorKey: authorKey("browser-b") })
+    expect(reply).not.toHaveProperty("clientId")
     const snap = (await (await r.get(api)).json()) as DraftSnapshot
     expect(snap.threads[0].comments.map((c) => c.body)).toEqual(["Logo größer?", "Antwort"])
   })

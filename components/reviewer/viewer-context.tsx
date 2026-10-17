@@ -11,6 +11,8 @@ export interface ViewerContextValue {
   dispatch: (action: DraftAction) => void;
   operator: boolean;
   clientId: string | null;
+  /** SHA-256 of clientId, matched against Comment.authorKey; null until computed. */
+  authorKey: string | null;
   /** The name from the password gate ("" when this browser has none). */
   authorName: string;
 }

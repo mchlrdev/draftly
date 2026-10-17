@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 // description, body, and a right-aligned action row. The body is a form so
 // Enter submits.
 
-export interface AdminDialogProps {
+export interface OperatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
@@ -23,7 +23,7 @@ export interface AdminDialogProps {
   wide?: boolean;
 }
 
-export function AdminDialog({
+export function OperatorDialog({
   open,
   onOpenChange,
   title,
@@ -32,7 +32,7 @@ export function AdminDialog({
   actions,
   onSubmit,
   wide,
-}: AdminDialogProps) {
+}: OperatorDialogProps) {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     onSubmit?.();

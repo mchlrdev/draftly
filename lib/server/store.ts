@@ -1,5 +1,6 @@
 import "server-only"
 
+import { createHash } from "node:crypto"
 import {
   DEFAULT_DESIGN_WIDTH,
   DEFAULT_LETTERBOX,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/api-types"
 import { db, now, tx } from "./db"
 import { generatePassword, hashPassword, newId, verifyPassword } from "./crypto"
-import { publish } from "./events"
+import { closeStreams, publish } from "./events"
 import { HttpError, notFound, unprocessable } from "./http"
 
 // Domain operations over SQLite. Inputs are untrusted (validated here);
@@ -86,11 +87,15 @@ const toPage = (r: PageRow): Page => ({
   updatedAt: r.updated_at,
 })
 
+/** Public stand-in for a clientId: lowercase hex SHA-256. The raw clientId is
+ *  the edit/delete credential and never leaves the server. */
+export const authorKey = (clientId: string) => createHash("sha256").update(clientId).digest("hex")
+
 const toComment = (r: CommentRow): Comment => ({
   id: r.id,
   threadId: r.thread_id,
   authorName: r.author_name,
-  clientId: r.client_id,
+  authorKey: authorKey(r.client_id),
   body: r.deleted_at ? "" : r.body,
   createdAt: r.created_at,
   editedAt: r.edited_at,
@@ -252,7 +257,9 @@ export function deleteProject(slug: string, force: boolean): void {
   const row = requireProject(slug)
   const { n } = db().prepare("SELECT COUNT(*) AS n FROM drafts WHERE project_id = ?").get(row.id) as { n: number }
   if (Number(n) > 0 && !force) throw new HttpError(409, "Das Projekt enthält noch Entwürfe.")
+  const drafts = db().prepare("SELECT id FROM drafts WHERE project_id = ?").all(row.id) as unknown as { id: string }[]
   db().prepare("DELETE FROM projects WHERE id = ?").run(row.id)
+  for (const d of drafts) closeStreams(d.id)
 }
 
 // ---------- drafts ----------
@@ -311,12 +318,15 @@ export function rotatePassword(project: string, draft: string): { password: stri
   const row = requireDraft(project, draft)
   const password = generatePassword()
   db().prepare("UPDATE drafts SET password_hash = ? WHERE id = ?").run(hashPassword(password), row.id)
+  // Old cookies stop working; open streams must not outlive them.
+  closeStreams(row.id)
   return { password }
 }
 
 export function deleteDraft(project: string, draft: string): void {
   const row = requireDraft(project, draft)
   db().prepare("DELETE FROM drafts WHERE id = ?").run(row.id)
+  closeStreams(row.id)
 }
 
 /** Draft row when the password matches; undefined for wrong password or unknown draft. */
@@ -432,7 +442,10 @@ export function reorderPages(project: string, draft: string, order: unknown): Pa
 export function deletePage(project: string, draft: string, pageId: string): void {
   const d = requireDraft(project, draft)
   requirePage(d.id, pageId)
+  // Collect before the cascade so other clients can drop the pins.
+  const threads = db().prepare("SELECT id FROM threads WHERE page_id = ?").all(pageId) as unknown as { id: string }[]
   db().prepare("DELETE FROM pages WHERE id = ?").run(pageId)
+  for (const t of threads) publish(d.id, { type: "thread.deleted", threadId: t.id, pageId })
 }
 
 export function pageHtml(draftId: string, pageId: string): string {

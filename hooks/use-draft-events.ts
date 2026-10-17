@@ -8,7 +8,9 @@ import { ApiError, reviewerApi, type DraftRef } from "@/lib/reviewer/api";
 // Live comments: one EventSource per open draft. Every (re)connect reloads
 // the full snapshot first, so events missed while the stream was down (or
 // between the server render and the first connect) can't be lost. A 401 on
-// that reload means the password was rotated: hand back to the gate.
+// that reload means the password was rotated (404: the draft is gone): hand
+// back to the gate / 404 via router.refresh(). The server ends open streams on
+// rotation and deletion, so the browser reconnects and finds out right away.
 
 const EVENT_TYPES: DraftEvent["type"][] = [
   "thread.created",
@@ -41,14 +43,24 @@ export function useDraftEvents(
     let attempt = 0;
     let stopped = false;
     let resync = 0;
+    // Events that arrive while a snapshot reload is in flight. The snapshot may
+    // predate them, so they are re-applied on top of it (upserts are idempotent).
+    let buffered: DraftEvent[] | null = null;
+
+    const apply = (event: DraftEvent) => dispatchRef.current({ type: "event", event });
 
     const reload = async () => {
       const id = ++resync;
+      buffered ??= [];
       try {
         const snapshot = await reviewerApi.snapshot({ project, draft });
-        if (!stopped && id === resync) dispatchRef.current({ type: "snapshot", snapshot });
+        if (stopped || id !== resync) return;
+        dispatchRef.current({ type: "snapshot", snapshot });
+        buffered?.forEach(apply);
+        buffered = null;
       } catch (err) {
-        if (stopped) return;
+        if (stopped || id !== resync) return;
+        buffered = null;
         if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
           stopped = true;
           source?.close();
@@ -68,7 +80,8 @@ export function useDraftEvents(
         source.addEventListener(type, (e) => {
           try {
             const event = JSON.parse((e as MessageEvent<string>).data) as DraftEvent;
-            dispatchRef.current({ type: "event", event });
+            buffered?.push(event);
+            apply(event);
           } catch {
             // A malformed message is skipped; the next reconnect resyncs.
           }

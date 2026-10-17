@@ -6,7 +6,7 @@ const comment = (id: string, threadId: string, at: string, over: Partial<Comment
   id,
   threadId,
   authorName: "Tanja",
-  clientId: "c-1",
+  authorKey: "k-1",
   body: `body ${id}`,
   createdAt: at,
   editedAt: null,
@@ -92,7 +92,7 @@ describe("draftReducer", () => {
 
   it("adds, edits and soft-deletes comments", () => {
     let s = snapshot([thread("t1", "p1", "2026-10-02T00:00:00Z")])
-    const reply = comment("r1", "t1", "2026-10-02T01:00:00Z", { authorName: "Pascal", clientId: "c-2" })
+    const reply = comment("r1", "t1", "2026-10-02T01:00:00Z", { authorName: "Pascal", authorKey: "k-2" })
     s = draftReducer(s, { type: "event", event: { type: "comment.created", comment: reply } })
     s = draftReducer(s, { type: "event", event: { type: "comment.created", comment: reply } })
     expect(s.threads[0].comments).toHaveLength(2)
@@ -123,6 +123,27 @@ describe("draftReducer", () => {
     draftReducer(before, { type: "event", event: { type: "comment.created", comment: comment("r1", "t1", "2026-10-03T00:00:00Z") } })
     draftReducer(before, { type: "event", event: { type: "thread.deleted", threadId: "t1", pageId: "p1" } })
     expect(JSON.stringify(before)).toBe(frozen)
+  })
+})
+
+describe("reconnect resync", () => {
+  it("events buffered during a reload, replayed on an older snapshot, land exactly once", () => {
+    const t1 = thread("t1", "p1", "2026-10-02T00:00:00Z")
+    const t2 = thread("t2", "p1", "2026-10-03T00:00:00Z")
+    const reply = comment("r1", "t1", "2026-10-03T01:00:00Z")
+    const buffered = [
+      { type: "thread.created", thread: t2 },
+      { type: "comment.created", comment: reply },
+      { type: "thread.deleted", threadId: "t0", pageId: "p1" },
+    ] as const
+    // Live: applied as they arrive...
+    let s = snapshot([thread("t0", "p1", "2026-10-01T00:00:00Z"), t1])
+    for (const event of buffered) s = draftReducer(s, { type: "event", event })
+    // ...then the reload answers with a snapshot taken before them, and the buffer is replayed.
+    s = draftReducer(s, { type: "snapshot", snapshot: snapshot([thread("t0", "p1", "2026-10-01T00:00:00Z"), t1]) })
+    for (const event of buffered) s = draftReducer(s, { type: "event", event })
+    expect(s.threads.map((t) => t.id)).toEqual(["t1", "t2"])
+    expect(s.threads[0].comments.map((c) => c.id)).toEqual(["t1-c1", "r1"])
   })
 })
 

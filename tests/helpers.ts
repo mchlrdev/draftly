@@ -12,7 +12,8 @@ export function client() {
 
   async function request(path: string, init: RequestInit & { json?: unknown } = {}) {
     const headers = new Headers(init.headers)
-    headers.set("x-forwarded-for", ip)
+    // The trusted proxy appends the peer address last; a test may prepend spoofed hops.
+    if (!headers.has("x-forwarded-for")) headers.set("x-forwarded-for", ip)
     if (jar.size) headers.set("cookie", [...jar].map(([k, v]) => `${k}=${v}`).join("; "))
     let body = init.body
     if (init.json !== undefined) {

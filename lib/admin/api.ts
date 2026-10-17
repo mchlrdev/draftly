@@ -3,51 +3,17 @@
 // API's German error message inline.
 
 import type { DisplayMode, Draft, Page, Project } from "@/lib/api-types";
+import { apiFetch, type ApiResult } from "@/lib/api-client";
 
-export type ApiResult<T> =
-  | { ok: true; status: number; data: T }
-  | { ok: false; status: number; error: string };
+export type { ApiResult };
 
-const FALLBACK_ERROR = "Das hat nicht geklappt. Bitte noch einmal versuchen.";
-
-async function call<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<ApiResult<T>> {
-  const { json, ...rest } = init;
-  const headers = new Headers(rest.headers);
-  let body = rest.body;
-  if (json !== undefined) {
-    headers.set("content-type", "application/json");
-    body = JSON.stringify(json);
-  }
-  let res: Response;
-  try {
-    res = await fetch(path, { ...rest, headers, body, credentials: "same-origin" });
-  } catch {
-    return { ok: false, status: 0, error: "Keine Verbindung zum Server." };
-  }
-  const text = await res.text();
-  let parsed: unknown = undefined;
-  if (text) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = undefined;
-    }
-  }
-  if (!res.ok) {
-    const error =
-      parsed && typeof parsed === "object" && "error" in parsed && typeof parsed.error === "string"
-        ? parsed.error
-        : FALLBACK_ERROR;
-    return { ok: false, status: res.status, error };
-  }
-  return { ok: true, status: res.status, data: parsed as T };
-}
+const call = apiFetch;
 
 const enc = encodeURIComponent;
 const draftPath = (project: string, draft: string) =>
   `/api/admin/projects/${enc(project)}/drafts/${enc(draft)}`;
 
-export const adminApi = {
+export const operatorApi = {
   login: (password: string) => call<void>("/api/admin/login", { method: "POST", json: { password } }),
   logout: () => call<void>("/api/admin/logout", { method: "POST" }),
 

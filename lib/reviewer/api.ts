@@ -2,6 +2,7 @@
 // Same origin, cookies ride along; every error carries a German message.
 
 import type { Comment, DraftSnapshot, ThreadStatus, Thread } from "@/lib/api-types";
+import { apiFetch, type ApiRequestInit } from "@/lib/api-client";
 
 export class ApiError extends Error {
   constructor(
@@ -13,34 +14,10 @@ export class ApiError extends Error {
   }
 }
 
-const FALLBACK = "Das hat nicht geklappt. Bitte erneut versuchen.";
-
-async function request<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
-  const { json, ...rest } = init;
-  let res: Response;
-  try {
-    res = await fetch(path, {
-      ...rest,
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: json === undefined ? rest.headers : { "Content-Type": "application/json", ...rest.headers },
-      body: json === undefined ? rest.body : JSON.stringify(json),
-    });
-  } catch {
-    throw new ApiError(0, "Keine Verbindung. Bitte erneut versuchen.");
-  }
-  if (!res.ok) {
-    let message = FALLBACK;
-    try {
-      const body = (await res.json()) as { error?: unknown };
-      if (typeof body.error === "string" && body.error) message = body.error;
-    } catch {
-      // not JSON
-    }
-    throw new ApiError(res.status, message);
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
+  const res = await apiFetch<T>(path, init);
+  if (!res.ok) throw new ApiError(res.status, res.error);
+  return res.data;
 }
 
 function base(project: string, draft: string) {

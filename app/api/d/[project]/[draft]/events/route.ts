@@ -1,6 +1,6 @@
 import { requireDraftAccess } from "@/lib/server/access"
 import { handle, type Params } from "@/lib/server/http"
-import { subscribe } from "@/lib/server/events"
+import { CLOSE_STREAM, subscribe } from "@/lib/server/events"
 
 const PING_MS = 15_000
 
@@ -20,8 +20,10 @@ export const GET = handle<Params<"project" | "draft">>(async (req, ctx) => {
           cleanup()
         }
       }
-      const unsubscribe = subscribe(access.draft.id, (event) => {
-        send(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)
+      const unsubscribe = subscribe(access.draft.id, (message) => {
+        // Rotation or deletion: end the stream so the reconnect re-checks access.
+        if (message.type === CLOSE_STREAM.type) return cleanup()
+        send(`event: ${message.type}\ndata: ${JSON.stringify(message)}\n\n`)
       })
       const ping = setInterval(() => send(": ping\n\n"), PING_MS)
       let done = false

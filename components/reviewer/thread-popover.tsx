@@ -45,7 +45,7 @@ export function ThreadPopover({
   placement: PopoverPlacement;
   onClose: () => void;
 }) {
-  const { draftRef, dispatch, operator, clientId, authorName } = useViewer();
+  const { draftRef, dispatch, operator, clientId, authorKey, authorName } = useViewer();
   const size = useSize();
   const icons = useIcons();
   const now = useNow();
@@ -122,7 +122,7 @@ export function ThreadPopover({
     }
   }
 
-  const mine = (c: Comment) => !!clientId && c.clientId === clientId;
+  const mine = (c: Comment) => !!authorKey && c.authorKey === authorKey;
   const actionsFor = (c: Comment) => ({
     canEdit: !c.deletedAt && mine(c),
     canDelete: !c.deletedAt && (mine(c) || operator),

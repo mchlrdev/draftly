@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { AdminDialog, CancelButton, DangerButton, ErrorText } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton, DangerButton, ErrorText } from "@/components/admin/operator-dialog";
 import { DangerZone, semibold } from "@/components/admin/text";
 import { useOrigin } from "@/components/admin/use-origin";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { deleteDraftText, draftUrl } from "@/lib/admin/format";
 import type { Draft } from "@/lib/api-types";
 
@@ -20,7 +20,7 @@ export function DeleteDraft({ draft }: { draft: Draft }) {
 
   const submit = async () => {
     setPending(true);
-    const res = await adminApi.deleteDraft(draft.projectSlug, draft.slug);
+    const res = await operatorApi.deleteDraft(draft.projectSlug, draft.slug);
     if (!res.ok) {
       setPending(false);
       setError(res.error);
@@ -47,7 +47,7 @@ export function DeleteDraft({ draft }: { draft: Draft }) {
           Draft löschen
         </Button>
       </DangerZone>
-      <AdminDialog
+      <OperatorDialog
         open={open}
         onOpenChange={setOpen}
         title={`${draft.slug} löschen?`}
@@ -63,7 +63,7 @@ export function DeleteDraft({ draft }: { draft: Draft }) {
         }
       >
         {error && <ErrorText>{error}</ErrorText>}
-      </AdminDialog>
+      </OperatorDialog>
     </>
   );
 }

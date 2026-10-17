@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InputField, InputGroup } from "@/components/ui/input-group";
-import { AdminDialog, CancelButton } from "@/components/admin/admin-dialog";
+import { OperatorDialog, CancelButton } from "@/components/admin/operator-dialog";
 import { CredentialsDialog } from "@/components/admin/credentials-dialog";
 import { LetterboxSwatches } from "@/components/admin/letterbox-picker";
 import { useOrigin } from "@/components/admin/use-origin";
-import { adminApi } from "@/lib/admin/api";
+import { operatorApi } from "@/lib/admin/api";
 import { slugProblem } from "@/lib/admin/slug";
 import { displayUrl, draftUrl, normalizeHex } from "@/lib/admin/format";
 import { DEFAULT_LETTERBOX } from "@/lib/api-types";
@@ -46,7 +46,7 @@ export function NewDraftButton({ projectSlug, takenSlugs }: { projectSlug: strin
   const submit = async () => {
     if (!canSubmit) return;
     setPending(true);
-    const res = await adminApi.createDraft(projectSlug, slug, letterbox);
+    const res = await operatorApi.createDraft(projectSlug, slug, letterbox);
     setPending(false);
     if (!res.ok) {
       setServerError(res.error);
@@ -63,7 +63,7 @@ export function NewDraftButton({ projectSlug, takenSlugs }: { projectSlug: strin
       <Button variant="primary" onClick={start}>
         Neuer Draft
       </Button>
-      <AdminDialog
+      <OperatorDialog
         open={open}
         onOpenChange={setOpen}
         title="Neuer Draft"
@@ -127,7 +127,7 @@ export function NewDraftButton({ projectSlug, takenSlugs }: { projectSlug: strin
             />
           </div>
         </InputGroup>
-      </AdminDialog>
+      </OperatorDialog>
       {created && (
         <CredentialsDialog
           open={credsOpen}

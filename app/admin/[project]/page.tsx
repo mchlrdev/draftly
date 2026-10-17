@@ -7,7 +7,7 @@ import { DeleteProject } from "@/components/admin/delete-project";
 import { draftMeta } from "@/lib/admin/format";
 
 // Artboard "Projekt".
-export default async function AdminProjectPage({ params }: { params: Promise<{ project: string }> }) {
+export default async function OperatorProjectPage({ params }: { params: Promise<{ project: string }> }) {
   if (!(await isOperator())) return null;
   const { project: slug } = await params;
   const project = await getProject(slug);
