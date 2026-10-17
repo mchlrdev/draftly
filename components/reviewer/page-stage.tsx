@@ -274,9 +274,11 @@ export function PageStage({
                     page.updatedAt
                   )}
                   // Same origin so the height can be read; no allow-scripts.
+                  // White behind it in both themes: the browser's own canvas,
+                  // so a page without a background renders as it would live.
                   sandbox="allow-same-origin"
                   tabIndex={-1}
-                  className="absolute inset-0 block size-full border-0 bg-background transition-opacity duration-160"
+                  className="absolute inset-0 block size-full border-0 bg-white transition-opacity duration-160"
                   style={{ opacity: ready ? 1 : 0 }}
                   onLoad={() => {
                     frameKeyRef.current = frameKey

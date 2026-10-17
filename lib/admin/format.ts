@@ -97,18 +97,12 @@ export function deleteDraftText(
   const gone = pages
     ? `${pages} und ${comments} sind weg.`
     : "Alle Kommentare sind weg."
-  return `${displayUrl(url)} zeigt danach 404. ${gone} Das lässt sich nicht rückgängig machen.`
+  return `${displayUrl(url)} zeigt danach 404. ${gone}`
 }
 
 /** Body of the "Projekt löschen?" confirmation for a project that still has drafts. */
 export function deleteProjectText(title: string, draftCount: number): string {
-  const links =
-    draftCount === 1
-      ? "Der Link hört"
-      : draftCount === 2
-        ? "Beide Links hören"
-        : "Alle Links hören"
-  return `„${title}“ hat ${countLabel(draftCount, "Draft", "Drafts")}. ${links} sofort auf zu funktionieren, alle Seiten und Kommentare sind weg.`
+  return `„${title}“ hat ${countLabel(draftCount, "Draft", "Drafts")}. Danach sind alle Links, Seiten und Kommentare weg.`
 }
 
 export function deleteProjectAction(draftCount: number): string {
@@ -153,8 +147,11 @@ export function shortUrl(url: string): string {
 export function externalUrlMessage(urls: readonly string[]): string {
   const n = urls.length
   const first = shortUrl(urls[0] ?? "http:")
-  const count = n === 1 ? "eine externe URL" : `${n} externe URLs`
-  return `Enthält ${count}, z. B. ${first}. Bilder und Fonts bitte inline einbetten.`
+  const found =
+    n === 1
+      ? `Externe URL gefunden: ${first}.`
+      : `${n} externe URLs gefunden, z. B. ${first}.`
+  return `${found} Bilder und Fonts bitte inline einbetten.`
 }
 
 /** Normalises a colour from the picker to the API's `#RRGGBB`, or null. */
@@ -178,8 +175,10 @@ export function designWidthProblem(
   display: DisplayMode
 ): string | null {
   if (display === "fill") return null
-  if (!/^\d+$/.test(value.trim())) return "Eine ganze Zahl in px."
+  if (!/^\d+$/.test(value.trim()))
+    return "Bitte eine ganze Zahl in px eingeben."
   const n = Number(value)
-  if (n < 320 || n > 7680) return "Zwischen 320 und 7680 px."
+  if (n < 320 || n > 7680)
+    return "Bitte einen Wert zwischen 320 und 7680 px eingeben."
   return null
 }

@@ -348,8 +348,7 @@ export function ThreadPopover({
           <DialogHeader>
             <DialogTitle>Thread löschen?</DialogTitle>
             <DialogDescription>
-              Der Pin und alle Kommentare darin verschwinden für alle. Das lässt
-              sich nicht rückgängig machen.
+              Der Pin und alle Kommentare darin verschwinden für alle.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -361,7 +360,7 @@ export function ThreadPopover({
               loading={busy === "delete"}
               onClick={() => void deleteThread()}
             >
-              Löschen
+              Thread löschen
             </Button>
           </DialogFooter>
         </DialogContent>

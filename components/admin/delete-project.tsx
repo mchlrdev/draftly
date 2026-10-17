@@ -25,7 +25,7 @@ export function DeleteProject(target: DeleteProjectTarget) {
   const [opening, setOpening] = useState({ key: 0, open: false })
   return (
     <>
-      <DangerZone text="Ein Projekt löschen nimmt alle Drafts und ihre Links mit.">
+      <DangerZone text="Löscht auch alle Drafts, Seiten und Kommentare.">
         <Button
           variant="ghost"
           className="text-destructive hover:text-destructive"
@@ -95,11 +95,7 @@ export function DeleteProjectDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Projekt löschen?"
-      description={
-        needsForce
-          ? deleteProjectText(title, count)
-          : `„${title}“ hat keine Drafts. Das Projekt verschwindet aus der Liste.`
-      }
+      description={needsForce ? deleteProjectText(title, count) : undefined}
       onSubmit={submit}
       actions={
         <>
@@ -114,7 +110,7 @@ export function DeleteProjectDialog({
         <InputGroup className="w-full">
           <InputField
             index={0}
-            label={`Zum Bestätigen den Slug tippen: ${slug}`}
+            label={`Zur Bestätigung „${slug}“ eingeben`}
             placeholder={slug}
             value={typed}
             autoFocus

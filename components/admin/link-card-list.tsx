@@ -78,8 +78,8 @@ function LinkCard({
         href={href}
         className={cn(
           "flex h-18 items-center gap-4 rounded-[14px] px-5 outline-none",
-          "shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(0_0_0/0.04)]",
-          "focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+          "shadow-[0_0_0_1px_var(--border),0_1px_2px_var(--shadow-color)]",
+          "focus-visible:ring-1 focus-visible:ring-focus-ring"
         )}
       >
         <span className="flex min-w-0 grow flex-col gap-1">

@@ -43,7 +43,7 @@ export function PasswordGate({
     const trimmed = name.trim()
     const nextNameError = trimmed
       ? trimmed.length > 60
-        ? "Höchstens 60 Zeichen."
+        ? "Bitte höchstens 60 Zeichen eingeben."
         : undefined
       : "Bitte gib deinen Namen ein."
     const nextPasswordError = password
@@ -124,8 +124,8 @@ export function PasswordGate({
       </form>
       {!passwordError && !nameError && (
         <p className={cn(size.type.caption, "pt-3 text-muted-foreground")}>
-          Der Name steht an deinen Kommentaren. Dieser Browser merkt sich
-          beides.
+          Dein Name steht an deinen Kommentaren und wird in diesem Browser
+          gespeichert.
         </p>
       )}
     </CenteredCard>

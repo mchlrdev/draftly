@@ -27,7 +27,11 @@ export function LoginForm() {
       return
     }
     setPending(false)
-    setError(res.status === 401 ? "Falsches Passwort." : res.error)
+    setError(
+      res.status === 401
+        ? "Falsches Passwort. Bitte erneut versuchen."
+        : res.error
+    )
   }
 
   return (
@@ -55,7 +59,7 @@ export function LoginForm() {
               "text-muted-foreground"
             )}
           >
-            Operator-Zugang. Ein Passwort, eine Session.
+            Operator-Zugang
           </p>
         </div>
         <InputGroup className="w-full">
@@ -90,7 +94,7 @@ export function LoginForm() {
             "pt-2 text-muted-foreground"
           )}
         >
-          Nur du. Das Cookie hält die Sitzung.
+          Bleibt auf diesem Gerät angemeldet.
         </p>
       </form>
     </main>

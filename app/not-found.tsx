@@ -13,7 +13,7 @@ export default function NotFound() {
     <CenteredCard>
       <CardHeading
         title="Hier ist nichts."
-        subtitle="Diese Adresse gibt es nicht oder nicht mehr. Prüfe den Link, den du bekommen hast."
+        subtitle="Prüfe den Link, den du bekommen hast."
       />
     </CenteredCard>
   )

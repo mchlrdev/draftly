@@ -8,13 +8,13 @@ export default async function OperatorHomePage() {
 
   return projects.length === 0 ? (
     <EmptyState title="Noch kein Projekt.">
-      Leg links mit „Neues Projekt“ eins an. Ein Projekt gruppiert Drafts, sein
-      Slug steht vorne in jeder Draft-URL.
+      Lege links ein Projekt an. Es gruppiert Drafts, und sein Slug steht in
+      jeder Draft-URL.
     </EmptyState>
   ) : (
     <EmptyState title="Wähle links einen Draft.">
-      Die Seitenleiste zeigt alle Projekte. Klapp eines auf, um seine Drafts zu
-      sehen, oder leg mit „Neuer Draft“ einen an.
+      Klapp links ein Projekt auf, um seine Drafts zu sehen, oder lege mit
+      „Draft anlegen“ einen neuen an.
     </EmptyState>
   )
 }

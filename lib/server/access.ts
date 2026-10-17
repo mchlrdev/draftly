@@ -34,12 +34,12 @@ export function requireDraftAccess(
   draft: string
 ): DraftAccess {
   const access = draftAccessFor(req.cookies, project, draft)
-  if (access === "missing") throw new HttpError(404, "Entwurf nicht gefunden.")
+  if (access === "missing") throw new HttpError(404, "Draft nicht gefunden.")
   if (access === "locked")
     throw new HttpError(401, "Bitte gib das Passwort ein.")
   return access
 }
 
 export function requireOperatorAccess(access: DraftAccess): void {
-  if (!access.operator) throw new HttpError(403, "Nur für die Betreiberin.")
+  if (!access.operator) throw new HttpError(403, "Nur für den Operator.")
 }

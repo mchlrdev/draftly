@@ -22,6 +22,16 @@ const tones = {
     "bg-background text-muted-foreground shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_18%,transparent)]",
 }
 
+// Pins on the page sit on the draft's own pixels, not on the app's surfaces,
+// so they don't follow the app theme: a design is as light or dark in dark
+// mode as it is in light mode. Paper's dark disc / white disc in both themes,
+// each with a halo in the opposite tone so it holds on light and dark pages.
+const pageTones = {
+  open: "bg-neutral-900 text-neutral-50 shadow-[0_0_0_1.5px_rgb(255_255_255/0.9),0_2px_8px_rgb(0_0_0/0.28)]",
+  resolved:
+    "bg-white text-neutral-500 shadow-[inset_0_0_0_1.5px_rgb(0_0_0/0.18),0_2px_8px_rgb(0_0_0/0.22)]",
+}
+
 export function PinNumber({
   number,
   resolved,
@@ -69,13 +79,8 @@ export const PinButton = forwardRef<HTMLButtonElement, PinButtonProps>(
           base,
           size.type.body,
           "cursor-pointer transition-shadow duration-80 outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2",
-          resolved
-            ? tones.resolved
-            : cn(
-                tones.open,
-                "shadow-[0_2px_8px_color-mix(in_oklab,var(--foreground)_20%,transparent)]"
-              ),
-          active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+          resolved ? pageTones.resolved : pageTones.open,
+          active && "ring-2 ring-neutral-900 ring-offset-2 ring-offset-white",
           className
         )}
         style={{ fontVariationSettings: fontWeights.semibold, ...style }}
@@ -92,10 +97,10 @@ export function DraftPin({ style }: { style?: CSSProperties }) {
   return (
     <span
       aria-hidden
-      className="pointer-events-none flex size-7 items-center justify-center rounded-full bg-background shadow-[inset_0_0_0_2px_var(--primary),0_2px_8px_rgb(0_0_0/0.18)]"
+      className="pointer-events-none flex size-7 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_2px_var(--color-neutral-900),0_2px_8px_rgb(0_0_0/0.28)]"
       style={style}
     >
-      <span className="size-2 rounded-full bg-primary" />
+      <span className="size-2 rounded-full bg-neutral-900" />
     </span>
   )
 }

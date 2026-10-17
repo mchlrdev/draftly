@@ -24,6 +24,7 @@ import { moveBy, sameOrder } from "@/lib/admin/reorder"
 import type { DisplayMode, Draft, Page } from "@/lib/api-types"
 import { useSize } from "@/lib/size-context"
 import { spring } from "@/lib/springs"
+import { SurfaceProvider } from "@/lib/surface-context"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
@@ -120,14 +121,14 @@ export function PagesSection({ draft }: { draft: Draft }) {
           Seiten
         </h2>
         <Button variant="primary" onClick={() => openForm()}>
-          HTML laden
+          Seite hinzufügen
         </Button>
       </div>
 
       {pages.length === 0 ? (
         <EmptyState title="Noch keine Seite.">
-          Lade eine HTML-Datei mit eingebetteten Styles und Bildern hoch. Der
-          Link zeigt die Seiten in dieser Reihenfolge.
+          Lade eine HTML-Datei hoch. Der Link zeigt die Seiten in dieser
+          Reihenfolge.
         </EmptyState>
       ) : (
         <Reorder.Group
@@ -175,7 +176,7 @@ export function PagesSection({ draft }: { draft: Draft }) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={toDelete ? `„${toDelete.name}“ löschen?` : "Seite löschen?"}
-        description="Die Seite und alle Kommentare darauf sind weg. Das lässt sich nicht rückgängig machen."
+        description="Die Seite und alle ihre Kommentare sind danach weg."
         onSubmit={deletePage}
         actions={
           <>
@@ -293,9 +294,8 @@ function PageRow({
       transition={spring.moderate}
       className={cn(
         "relative flex flex-col rounded-xl bg-card px-4",
-        "shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(0_0_0/0.04)]",
-        dragging &&
-          "z-10 shadow-[0_0_0_1px_var(--border),0_8px_24px_rgb(0_0_0/0.10)]"
+        "shadow-[0_0_0_1px_var(--border),0_1px_2px_var(--shadow-color)]",
+        dragging && "z-10 shadow-surface-5"
       )}
     >
       <div className="flex h-14 items-center gap-3">
@@ -309,7 +309,7 @@ function PageRow({
           onKeyDown={onKeyDown}
           className={cn(
             "-ml-1 flex h-7 w-6 shrink-0 touch-none items-center justify-center rounded-md outline-none",
-            "transition-colors duration-80 hover:bg-hover focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]",
+            "transition-colors duration-80 hover:bg-hover focus-visible:ring-1 focus-visible:ring-focus-ring",
             dragging ? "cursor-grabbing" : "cursor-grab"
           )}
         >
@@ -324,21 +324,24 @@ function PageRow({
         >
           {page.name}
         </span>
-        <Select value={display} onValueChange={changeDisplay}>
-          <SelectTrigger
-            variant="borderless"
-            aria-label={`Darstellung von „${page.name}“`}
-            className="w-24 min-w-0 shrink-0"
-          />
-          <SelectContent>
-            <SelectItem index={0} value="fixed">
-              Fix
-            </SelectItem>
-            <SelectItem index={1} value="fill">
-              Fill
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        {/* The row is a card (surface 2): the menu opens a step above it. */}
+        <SurfaceProvider value={2}>
+          <Select value={display} onValueChange={changeDisplay}>
+            <SelectTrigger
+              variant="borderless"
+              aria-label={`Darstellung von „${page.name}“`}
+              className="w-24 min-w-0 shrink-0"
+            />
+            <SelectContent>
+              <SelectItem index={0} value="fixed">
+                Fix
+              </SelectItem>
+              <SelectItem index={1} value="fill">
+                Fill
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </SurfaceProvider>
         <span className="flex w-24 shrink-0 items-center gap-1">
           {display === "fixed" && (
             <WidthField
@@ -419,7 +422,7 @@ function WidthField({
           field,
           "h-7 w-16 rounded-md bg-transparent px-2 text-right text-foreground tabular-nums outline-none",
           "shadow-[inset_0_0_0_1px_var(--border)] transition-colors duration-80 hover:bg-hover",
-          "focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+          "focus-visible:ring-1 focus-visible:ring-focus-ring"
         )}
       />
       <span

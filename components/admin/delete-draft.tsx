@@ -20,7 +20,7 @@ export function DeleteDraft({ draft }: { draft: DraftSummary }) {
   const [opening, setOpening] = useState({ key: 0, open: false })
   return (
     <>
-      <DangerZone text="Den Draft löschen macht den Link sofort ungültig. Kommentare gehen mit.">
+      <DangerZone text="Löscht auch alle Seiten und Kommentare.">
         <Button
           variant="ghost"
           className="text-destructive hover:text-destructive"

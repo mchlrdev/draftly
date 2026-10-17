@@ -113,8 +113,8 @@ export function PageFormDialog({
       title={page ? `„${page.name}“ ersetzen` : "Seite hinzufügen"}
       description={
         page
-          ? "Die neue Datei ersetzt die alte. Die Seite behält ihre Kommentare, die Pins bleiben an ihren Design-Koordinaten."
-          : "Eine HTML-Datei mit eingebetteten Styles und Bildern. Externe Links (http, https) werden abgelehnt."
+          ? "Kommentare bleiben erhalten."
+          : "Styles und Bilder müssen eingebettet sein. Externe URLs (http, https) werden abgelehnt."
       }
       onSubmit={submit}
       actions={
@@ -126,7 +126,7 @@ export function PageFormDialog({
             disabled={!canSubmit}
             loading={pending}
           >
-            {replacing ? "Ersetzen" : "Hochladen"}
+            {replacing ? "Seite ersetzen" : "Seite hochladen"}
           </Button>
         </>
       }
@@ -199,7 +199,7 @@ export function PageFormDialog({
             onClick={() => fileInput.current?.click()}
             className={cn(
               typeClass("body", "compact"),
-              "flex h-16 items-center justify-center rounded-[10px] border border-dashed border-border text-muted-foreground transition-colors duration-80 outline-none hover:bg-hover hover:text-foreground focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+              "flex h-16 items-center justify-center rounded-[10px] border border-dashed border-border text-muted-foreground transition-colors duration-80 outline-none hover:bg-hover hover:text-foreground focus-visible:ring-1 focus-visible:ring-focus-ring"
             )}
             style={semibold}
           >
@@ -214,7 +214,7 @@ export function PageFormDialog({
               "text-muted-foreground"
             )}
           >
-            Wenn sich das Layout stark verändert hat, sitzen Pins evtl. daneben.
+            Bei stark verändertem Layout können Pins danebenliegen.
           </p>
         )}
       </div>

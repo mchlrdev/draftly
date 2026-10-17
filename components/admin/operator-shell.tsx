@@ -113,7 +113,7 @@ export function OperatorShell({
                 icon={icons.plus}
                 onClick={() => show({ kind: "new-project" })}
               >
-                Neues Projekt
+                Projekt anlegen
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -126,7 +126,7 @@ export function OperatorShell({
                   "px-2 py-1 text-muted-foreground"
                 )}
               >
-                Noch kein Projekt.
+                Noch keine Projekte. Lege oben das erste an.
               </p>
             ) : (
               <SidebarMenu aria-label="Projekte">
@@ -185,7 +185,7 @@ export function OperatorShell({
                             render={<button type="button" />}
                             onClick={() => show({ kind: "new-draft", project })}
                           >
-                            Neuer Draft
+                            Draft anlegen
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>

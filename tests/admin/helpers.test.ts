@@ -144,15 +144,13 @@ describe("format", () => {
         openThreadCount: 3,
       })
     ).toBe(
-      "draftly.mchlr.de/tanjas-oase/v4 zeigt danach 404. Beide Seiten und 3 offene Kommentare sind weg. Das lässt sich nicht rückgängig machen."
+      "draftly.mchlr.de/tanjas-oase/v4 zeigt danach 404. Beide Seiten und 3 offene Kommentare sind weg."
     )
     expect(
       deleteDraftText("https://d.de/a/b", { pageCount: 0, openThreadCount: 0 })
-    ).toBe(
-      "d.de/a/b zeigt danach 404. Alle Kommentare sind weg. Das lässt sich nicht rückgängig machen."
-    )
+    ).toBe("d.de/a/b zeigt danach 404. Alle Kommentare sind weg.")
     expect(deleteProjectText("Tanjas Wellness-Oase", 2)).toBe(
-      "„Tanjas Wellness-Oase“ hat 2 Drafts. Beide Links hören sofort auf zu funktionieren, alle Seiten und Kommentare sind weg."
+      "„Tanjas Wellness-Oase“ hat 2 Drafts. Danach sind alle Links, Seiten und Kommentare weg."
     )
     expect(deleteProjectAction(2)).toBe("Projekt und 2 Drafts löschen")
   })
@@ -173,7 +171,7 @@ describe("format", () => {
     ])
     expect(shortUrl(urls[0])).toBe("https://app.paper.design/…/hero.png")
     expect(externalUrlMessage(urls)).toBe(
-      "Enthält 2 externe URLs, z. B. https://app.paper.design/…/hero.png. Bilder und Fonts bitte inline einbetten."
+      "2 externe URLs gefunden, z. B. https://app.paper.design/…/hero.png. Bilder und Fonts bitte inline einbetten."
     )
     expect(findExternalUrls("<p>self-contained</p>")).toEqual([])
   })
@@ -187,8 +185,12 @@ describe("format", () => {
 
   it("checks the design width", () => {
     expect(designWidthProblem("1440", "fixed")).toBeNull()
-    expect(designWidthProblem("12.5", "fixed")).toBe("Eine ganze Zahl in px.")
-    expect(designWidthProblem("100", "fixed")).toBe("Zwischen 320 und 7680 px.")
+    expect(designWidthProblem("12.5", "fixed")).toBe(
+      "Bitte eine ganze Zahl in px eingeben."
+    )
+    expect(designWidthProblem("100", "fixed")).toBe(
+      "Bitte einen Wert zwischen 320 und 7680 px eingeben."
+    )
     expect(designWidthProblem("", "fill")).toBeNull()
   })
 })

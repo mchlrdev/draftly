@@ -32,8 +32,8 @@ export default async function OperatorProjectPage({
       />
       {project.drafts.length === 0 ? (
         <EmptyState title="Noch kein Draft.">
-          Ein Draft ist ein Link mit eigenem Passwort, z. B. /{project.slug}/v1.
-          Er hält eine oder mehrere Seiten.
+          Ein Draft ist ein Link mit eigenem Passwort, z. B. /{project.slug}/v1,
+          der eine oder mehrere Seiten zeigt. Lege oben einen an.
         </EmptyState>
       ) : (
         <LinkCardList

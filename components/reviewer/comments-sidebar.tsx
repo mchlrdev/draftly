@@ -49,8 +49,8 @@ export function CommentsSidebar({
   const hover = useFluidHover(listRef, { axis: "y" })
 
   const hint = composing
-    ? "Enter zum Pinnen · Esc zum Verwerfen"
-    : "Auf das Design klicken, um zu pinnen."
+    ? "Enter setzt den Pin · Esc bricht ab"
+    : "Auf das Design klicken, um einen Pin zu setzen."
 
   return (
     <aside
@@ -65,7 +65,7 @@ export function CommentsSidebar({
           Kommentare
         </h2>
         <span className={cn(size.type.body, "text-muted-foreground")}>
-          {openCount === 0 ? "Keine offen" : `${openCount} offen`}
+          {openCount === 0 ? "Nichts offen" : `${openCount} offen`}
         </span>
       </div>
 
@@ -92,7 +92,7 @@ export function CommentsSidebar({
           {!pageHasThreads ? (
             <EmptyState
               title="Noch keine Kommentare auf dieser Seite."
-              text="Auf eine Stelle im Design klicken, um einen Pin mit Kommentar zu setzen."
+              text="Auf eine Stelle im Design klicken, um einen Pin zu setzen."
             />
           ) : rows.length === 0 ? (
             filter === "open" ? (

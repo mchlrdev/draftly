@@ -57,7 +57,7 @@ export function NewProjectDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Neues Projekt"
-      description="Der Slug steht vorne in jeder Draft-URL. Kleinbuchstaben, Zahlen, Bindestriche."
+      description="Der Slug steht in jeder Draft-URL. Nur Kleinbuchstaben, Zahlen und Bindestriche."
       onSubmit={submit}
       actions={
         <>
@@ -68,7 +68,7 @@ export function NewProjectDialog({
             disabled={!canSubmit}
             loading={pending}
           >
-            Anlegen
+            Projekt anlegen
           </Button>
         </>
       }

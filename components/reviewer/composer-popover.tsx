@@ -127,7 +127,7 @@ export function ComposerPopover({
           disabled={!canSubmit && !pending}
           loading={pending}
         >
-          Pinnen
+          Pin setzen
         </Button>
       </div>
     </PopoverShell>

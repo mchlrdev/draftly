@@ -7,12 +7,15 @@ import { MAX_HTML_BYTES, type PageInput } from "./store"
 export async function readPageForm(req: Request): Promise<PageInput> {
   const length = Number(req.headers.get("content-length") ?? 0)
   if (length > MAX_HTML_BYTES + 64 * 1024)
-    throw new HttpError(413, "Die Datei ist zu groß (max. 25 MB).")
+    throw new HttpError(
+      413,
+      "Die Datei ist zu groß (max. 25 MB). Bitte eine kleinere wählen."
+    )
   let form: FormData
   try {
     form = await req.formData()
   } catch {
-    throw new HttpError(400, "Ungültige Anfrage.")
+    throw new HttpError(400, "Ungültige Anfrage. Bitte lade die Seite neu.")
   }
   const file = form.get("file")
   const field = (k: string) => {
@@ -28,7 +31,10 @@ export async function readPageForm(req: Request): Promise<PageInput> {
     if (typeof file === "string")
       throw unprocessable("Bitte eine HTML-Datei auswählen.")
     if (file.size > MAX_HTML_BYTES)
-      throw new HttpError(413, "Die Datei ist zu groß (max. 25 MB).")
+      throw new HttpError(
+        413,
+        "Die Datei ist zu groß (max. 25 MB). Bitte eine kleinere wählen."
+      )
     input.html = await file.text()
     input.fileName = file.name
   }

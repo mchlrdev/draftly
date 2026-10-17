@@ -59,7 +59,7 @@ export function EditProjectDialog({
   const problem =
     serverError ??
     (slug === ""
-      ? "Der Slug darf nicht leer sein."
+      ? "Bitte einen Slug eingeben."
       : slugProblem(
           slug,
           "project",
@@ -139,7 +139,7 @@ export function EditProjectDialog({
             <Hint>
               {slug === project.slug
                 ? `${displayUrl(origin)}/${slug}/…`
-                : "Ein neuer Slug ändert die Links aller Drafts im Projekt."}
+                : "Ein neuer Slug ändert alle Draft-Links im Projekt."}
             </Hint>
           )}
         </div>
@@ -172,7 +172,7 @@ export function EditDraftDialog({
   const problem =
     serverError ??
     (slug === ""
-      ? "Der Slug darf nicht leer sein."
+      ? "Bitte einen Slug eingeben."
       : slugProblem(
           slug,
           "draft",
@@ -180,7 +180,7 @@ export function EditDraftDialog({
         ))
   const letterboxError = normalizeHex(letterboxText)
     ? null
-    : "Eine Farbe als #RRGGBB."
+    : "Bitte eine Farbe als #RRGGBB eingeben."
   const changed = slug !== draft.slug || letterbox !== draft.letterbox
   const canSubmit = changed && !problem && !letterboxError && !pending
 
@@ -251,7 +251,7 @@ export function EditDraftDialog({
             <Hint>
               {slug === draft.slug
                 ? displayUrl(draftUrl(origin, draft.projectSlug, slug))
-                : `Der Link wird ${displayUrl(draftUrl(origin, draft.projectSlug, slug))}, der alte zeigt dann 404.`}
+                : `Neuer Link: ${displayUrl(draftUrl(origin, draft.projectSlug, slug))}. Der alte zeigt dann 404.`}
             </Hint>
           )}
         </div>

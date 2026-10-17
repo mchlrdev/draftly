@@ -122,10 +122,12 @@ function projectSlug(v: unknown): string {
   const slug = str(v).trim()
   if (!SLUG_PATTERN.test(slug))
     throw unprocessable(
-      "Kürzel: nur Kleinbuchstaben, Ziffern und Bindestriche (nicht am Anfang oder Ende)."
+      "Bitte nur Kleinbuchstaben, Ziffern und Bindestriche verwenden, nicht am Anfang oder Ende."
     )
   if ((RESERVED_SLUGS as readonly string[]).includes(slug))
-    throw unprocessable(`„${slug}“ ist reserviert.`)
+    throw unprocessable(
+      `„${slug}“ ist als Slug reserviert. Bitte einen anderen wählen.`
+    )
   return slug
 }
 
@@ -133,7 +135,7 @@ function draftSlug(v: unknown): string {
   const slug = str(v).trim()
   if (!SLUG_PATTERN.test(slug))
     throw unprocessable(
-      "Kürzel: nur Kleinbuchstaben, Ziffern und Bindestriche (nicht am Anfang oder Ende)."
+      "Bitte nur Kleinbuchstaben, Ziffern und Bindestriche verwenden, nicht am Anfang oder Ende."
     )
   return slug
 }
@@ -141,20 +143,20 @@ function draftSlug(v: unknown): string {
 function letterbox(v: unknown): string {
   const s = str(v).trim()
   if (!/^#[0-9a-fA-F]{6}$/.test(s))
-    throw unprocessable("Farbe bitte als #RRGGBB angeben.")
+    throw unprocessable("Bitte eine Farbe als #RRGGBB angeben.")
   return s.toUpperCase()
 }
 
 function display(v: unknown): DisplayMode {
   if (v === "fixed" || v === "fill") return v
-  throw unprocessable("Darstellung muss „fixed“ oder „fill“ sein.")
+  throw unprocessable("Bitte „fixed“ oder „fill“ als Darstellung wählen.")
 }
 
 function designWidth(v: unknown): number {
   const n = typeof v === "number" ? v : Number(str(v).trim())
   if (!Number.isInteger(n) || n < 200 || n > 10000)
     throw unprocessable(
-      "Designbreite muss eine ganze Zahl zwischen 200 und 10000 sein."
+      "Bitte eine ganze Zahl zwischen 200 und 10000 px angeben."
     )
   return n
 }
@@ -162,7 +164,9 @@ function designWidth(v: unknown): number {
 function pageName(v: unknown): string {
   const s = str(v).trim()
   if (!s || s.length > 120)
-    throw unprocessable("Seitenname muss 1–120 Zeichen lang sein.")
+    throw unprocessable(
+      "Bitte einen Seitennamen mit 1 bis 120 Zeichen angeben."
+    )
   return s
 }
 
@@ -170,7 +174,7 @@ function commentBody(v: unknown): string {
   const s = str(v).trim()
   if (!s || s.length > MAX_COMMENT_LENGTH)
     throw unprocessable(
-      `Kommentar muss 1–${MAX_COMMENT_LENGTH} Zeichen lang sein.`
+      `Bitte einen Kommentar mit 1 bis ${MAX_COMMENT_LENGTH} Zeichen schreiben.`
     )
   return s
 }
@@ -178,19 +182,21 @@ function commentBody(v: unknown): string {
 function authorName(v: unknown): string {
   const s = str(v).trim()
   if (!s || s.length > 60)
-    throw unprocessable("Name muss 1–60 Zeichen lang sein.")
+    throw unprocessable("Bitte einen Namen mit 1 bis 60 Zeichen angeben.")
   return s
 }
 
 function clientId(v: unknown): string {
   const s = str(v).trim()
-  if (!s || s.length > 200) throw unprocessable("clientId fehlt.")
+  if (!s || s.length > 200) throw unprocessable("Bitte lade die Seite neu.")
   return s
 }
 
 function coord(v: unknown, axis: string): number {
   if (typeof v !== "number" || !Number.isFinite(v) || v < 0)
-    throw unprocessable(`${axis} muss eine Zahl ≥ 0 sein.`)
+    throw unprocessable(
+      `Ungültige Position (${axis}). Bitte den Pin neu setzen.`
+    )
   return v
 }
 
@@ -198,10 +204,11 @@ export const MAX_HTML_BYTES = 25 * 1024 * 1024
 
 /** Uploaded HTML must be self-contained: no http(s) URL anywhere. */
 export function validateHtml(html: string): string {
-  if (!html.trim()) throw unprocessable("Die Datei ist leer.")
+  if (!html.trim())
+    throw unprocessable("Die Datei ist leer. Bitte eine andere wählen.")
   if (/https?:/i.test(html))
     throw unprocessable(
-      "Die Datei enthält http(s)-Links. Bitte alle Bilder, Schriften und Styles direkt einbetten."
+      "Die Datei enthält externe URLs (http, https). Bitte Bilder, Schriften und Styles direkt einbetten."
     )
   return html
 }
@@ -277,7 +284,7 @@ export function createProject(input: {
   const slug = projectSlug(input.slug)
   const title = str(input.title).trim() || slug
   if (title.length > 120)
-    throw unprocessable("Titel darf höchstens 120 Zeichen lang sein.")
+    throw unprocessable("Bitte einen Titel mit höchstens 120 Zeichen angeben.")
   try {
     db()
       .prepare(
@@ -286,7 +293,10 @@ export function createProject(input: {
       .run(slug, title, now())
   } catch (err) {
     if (isUniqueViolation(err))
-      throw new HttpError(409, `Das Projekt „${slug}“ gibt es schon.`)
+      throw new HttpError(
+        409,
+        `„${slug}“ ist schon vergeben. Bitte einen anderen Slug wählen.`
+      )
     throw err
   }
   return getProject(slug)!
@@ -302,7 +312,9 @@ export function updateProject(
   if (input.title !== undefined) {
     title = str(input.title).trim() || nextSlug
     if (title.length > 120)
-      throw unprocessable("Titel darf höchstens 120 Zeichen lang sein.")
+      throw unprocessable(
+        "Bitte einen Titel mit höchstens 120 Zeichen angeben."
+      )
   }
   try {
     db()
@@ -310,7 +322,10 @@ export function updateProject(
       .run(nextSlug, title, row.id)
   } catch (err) {
     if (isUniqueViolation(err))
-      throw new HttpError(409, `Das Projekt „${nextSlug}“ gibt es schon.`)
+      throw new HttpError(
+        409,
+        `„${nextSlug}“ ist schon vergeben. Bitte einen anderen Slug wählen.`
+      )
     throw err
   }
   return getProject(nextSlug)!
@@ -322,7 +337,10 @@ export function deleteProject(slug: string, force: boolean): void {
     .prepare("SELECT COUNT(*) AS n FROM drafts WHERE project_id = ?")
     .get(row.id) as { n: number }
   if (Number(n) > 0 && !force)
-    throw new HttpError(409, "Das Projekt enthält noch Entwürfe.")
+    throw new HttpError(
+      409,
+      "Das Projekt enthält noch Drafts. Zum Löschen den Slug bestätigen."
+    )
   const drafts = db()
     .prepare("SELECT id FROM drafts WHERE project_id = ?")
     .all(row.id) as unknown as { id: string }[]
@@ -346,7 +364,7 @@ export function findDraft(
 
 export function requireDraft(project: string, draft: string): DraftRow {
   const row = findDraft(project, draft)
-  if (!row) throw notFound("Entwurf nicht gefunden.")
+  if (!row) throw notFound("Draft nicht gefunden.")
   return row
 }
 
@@ -397,7 +415,7 @@ export function createDraft(
     if (isUniqueViolation(err))
       throw new HttpError(
         409,
-        `Den Entwurf „${slug}“ gibt es in diesem Projekt schon.`
+        `„${slug}“ ist in diesem Projekt schon vergeben. Bitte einen anderen Slug wählen.`
       )
     throw err
   }
@@ -421,7 +439,7 @@ export function updateDraft(
     if (isUniqueViolation(err))
       throw new HttpError(
         409,
-        `Den Entwurf „${nextSlug}“ gibt es in diesem Projekt schon.`
+        `„${nextSlug}“ ist in diesem Projekt schon vergeben. Bitte einen anderen Slug wählen.`
       )
     throw err
   }
@@ -603,7 +621,7 @@ export function reorderPages(
     ids.every((id) => typeof id === "string" && current.includes(id))
   if (!valid)
     throw unprocessable(
-      "Die Reihenfolge muss jede Seite genau einmal enthalten."
+      "Die Reihenfolge ist veraltet. Bitte lade die Seite neu."
     )
   tx(() => {
     const stmt = db().prepare("UPDATE pages SET sort = ? WHERE id = ?")
@@ -745,7 +763,7 @@ export function setThreadStatus(
 ): Thread {
   requireThread(draft.id, threadId)
   if (status !== "open" && status !== "resolved")
-    throw unprocessable("Status muss „open“ oder „resolved“ sein.")
+    throw unprocessable("Ungültiger Status.")
   db()
     .prepare("UPDATE threads SET status = ?, resolved_at = ? WHERE id = ?")
     .run(status, status === "resolved" ? now() : null, threadId)
@@ -836,10 +854,10 @@ export function updateSettings(input: { operatorName?: unknown }): {
 } {
   if (input.operatorName !== undefined) {
     if (input.operatorName !== null && typeof input.operatorName !== "string")
-      throw unprocessable("Name muss Text sein.")
+      throw unprocessable("Bitte einen Namen als Text angeben.")
     const name = str(input.operatorName).trim()
     if (name.length > 60)
-      throw unprocessable("Name darf höchstens 60 Zeichen lang sein.")
+      throw unprocessable("Bitte einen Namen mit höchstens 60 Zeichen angeben.")
     if (name)
       db()
         .prepare(

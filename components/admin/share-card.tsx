@@ -20,6 +20,7 @@ import { displayUrl, draftUrl } from "@/lib/admin/format"
 import type { Draft } from "@/lib/api-types"
 import { spring } from "@/lib/springs"
 import { useSize } from "@/lib/size-context"
+import { SurfaceProvider } from "@/lib/surface-context"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
@@ -127,7 +128,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
                 setRotateOpen(true)
               }}
             >
-              Rotieren
+              Erneuern
             </Button>
           </>
         }
@@ -138,7 +139,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
           <span className="text-destructive">{stored.message}</span>
         ) : stored === null ? (
           <span className="text-muted-foreground">
-            Nicht gespeichert · einmal rotieren
+            Nicht gespeichert. Mit „Erneuern“ setzen.
           </span>
         ) : (
           <span className="flex min-w-0 items-center gap-1">
@@ -164,20 +165,23 @@ export function ShareCard({ draft }: { draft: Draft }) {
             style={semibold}
             onClick={() => setPickerOpen(true)}
           >
-            Ändern
+            Farbe ändern
           </Button>
         }
       >
         <span className="flex flex-col gap-1">
-          <LetterboxPicker
-            value={letterbox}
-            onChange={setLetterbox}
-            open={pickerOpen}
-            onOpenChange={(next) => {
-              setPickerOpen(next)
-              if (!next) void saveLetterbox()
-            }}
-          />
+          {/* The card is surface 2, so the picker opens a step above it. */}
+          <SurfaceProvider value={2}>
+            <LetterboxPicker
+              value={letterbox}
+              onChange={setLetterbox}
+              open={pickerOpen}
+              onOpenChange={(next) => {
+                setPickerOpen(next)
+                if (!next) void saveLetterbox()
+              }}
+            />
+          </SurfaceProvider>
           {letterboxError && <ErrorText>{letterboxError}</ErrorText>}
         </span>
       </Row>
@@ -185,8 +189,8 @@ export function ShareCard({ draft }: { draft: Draft }) {
       <OperatorDialog
         open={rotateOpen}
         onOpenChange={setRotateOpen}
-        title="Passwort rotieren?"
-        description={`Draftly erzeugt ein neues Passwort für ${draft.slug}. Das alte funktioniert danach nicht mehr. Link, Seiten und Kommentare bleiben.`}
+        title="Passwort erneuern?"
+        description="Das alte Passwort funktioniert danach nicht mehr. Link, Seiten und Kommentare bleiben."
         onSubmit={rotate}
         actions={
           <>
@@ -205,7 +209,7 @@ export function ShareCard({ draft }: { draft: Draft }) {
           open={credsOpen}
           onOpenChange={setCredsOpen}
           title={`Neues Passwort für ${draft.slug}`}
-          description={`Das alte Passwort funktioniert ab sofort nicht mehr. Schick das neue an alle, die ${draft.slug} ansehen sollen.`}
+          description={`Schick das neue an alle, die ${draft.slug} ansehen sollen.`}
           url={url}
           password={password}
         />

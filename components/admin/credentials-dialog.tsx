@@ -36,7 +36,7 @@ export function CredentialsDialog({
       actions={
         <>
           <Button type="submit" variant="secondary">
-            Fertig
+            Schließen
           </Button>
           <CopyButton
             variant="primary"
@@ -66,7 +66,7 @@ export function CredentialsDialog({
       </FieldBlock>
       <FieldBlock
         label="Passwort"
-        hint="Du findest es jederzeit wieder auf der Draft-Seite."
+        hint="Jederzeit wieder auf der Draft-Seite abrufbar."
       >
         <div className="flex h-14 items-center justify-between gap-2 rounded-xl bg-muted pr-2 pl-3.5">
           <span

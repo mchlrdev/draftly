@@ -39,7 +39,7 @@ export function NewDraftButton({
         variant="primary"
         onClick={() => setOpening((o) => ({ key: o.key + 1, open: true }))}
       >
-        Neuer Draft
+        Draft anlegen
       </Button>
       <NewDraftDialog
         key={opening.key}
@@ -84,7 +84,7 @@ export function NewDraftDialog({
   const problem = serverError ?? slugProblem(slug, "draft", takenSlugs)
   const letterboxError = normalizeHex(letterboxText)
     ? null
-    : "Eine Farbe als #RRGGBB."
+    : "Bitte eine Farbe als #RRGGBB eingeben."
   const canSubmit = slug !== "" && !problem && !letterboxError && !pending
 
   const submit = async () => {
@@ -110,7 +110,6 @@ export function NewDraftDialog({
         open={open}
         onOpenChange={onOpenChange}
         title="Neuer Draft"
-        description="Draftly erzeugt ein Passwort. Du findest es danach jederzeit auf der Draft-Seite."
         onSubmit={submit}
         actions={
           <>
@@ -121,7 +120,7 @@ export function NewDraftDialog({
               disabled={!canSubmit}
               loading={pending}
             >
-              Anlegen
+              Draft anlegen
             </Button>
           </>
         }
@@ -151,7 +150,7 @@ export function NewDraftDialog({
                 )}
               >
                 {slug
-                  ? `Frei. ${displayUrl(draftUrl(origin, projectSlug, slug))} ist noch nicht vergeben.`
+                  ? `Frei: ${displayUrl(draftUrl(origin, projectSlug, slug))}`
                   : `${displayUrl(origin)}/${projectSlug}/…`}
               </p>
             )}
@@ -186,7 +185,7 @@ export function NewDraftDialog({
           open={credsOpen}
           onOpenChange={setCredsOpen}
           title={`${created.slug} ist angelegt`}
-          description="Schick Link und Passwort an alle, die den Draft ansehen sollen."
+          description="Schick beides an alle, die den Draft ansehen sollen."
           url={draftUrl(origin, projectSlug, created.slug)}
           password={created.password}
         />

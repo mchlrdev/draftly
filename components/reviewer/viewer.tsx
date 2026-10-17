@@ -211,7 +211,7 @@ export function Viewer({
                 style={{ backgroundColor: state.draft.letterbox }}
               >
                 <p className={cn(size.type.subtitle, "text-muted-foreground")}>
-                  Dieser Entwurf hat noch keine Seiten.
+                  Dieser Draft hat noch keine Seiten.
                 </p>
               </div>
             </div>

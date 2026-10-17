@@ -15,7 +15,7 @@ export function CenteredCard({ children }: { children: ReactNode }) {
       <div className="flex w-105 max-w-full flex-col items-center pb-5">
         <BrandLabel />
       </div>
-      <div className="flex w-105 max-w-full flex-col gap-3 rounded-[14px] bg-card px-9 pt-9 pb-8 shadow-[0_0_0_1px_var(--border),0_1px_3px_rgb(0_0_0/0.06)]">
+      <div className="flex w-105 max-w-full flex-col gap-3 rounded-[14px] bg-card px-9 pt-9 pb-8 shadow-[0_0_0_1px_var(--border),0_1px_3px_var(--shadow-color)]">
         {children}
       </div>
     </main>

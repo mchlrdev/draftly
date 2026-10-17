@@ -48,7 +48,7 @@ export function OperatorSettingsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Einstellungen"
-      description="Dein Name steht in der Seitenleiste und an deinen Kommentaren."
+      description="Erscheint in der Seitenleiste und an deinen Kommentaren."
       onSubmit={submit}
       actions={
         <>
@@ -76,7 +76,10 @@ export function OperatorSettingsDialog({
             setName(v)
             setError(null)
           }}
-          error={error ?? (tooLong ? "Höchstens 60 Zeichen." : undefined)}
+          error={
+            error ??
+            (tooLong ? "Bitte höchstens 60 Zeichen eingeben." : undefined)
+          }
         />
       </InputGroup>
     </OperatorDialog>

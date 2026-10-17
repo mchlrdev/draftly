@@ -16,7 +16,7 @@ export const normal = { fontVariationSettings: fontWeights.normal } as const
 
 /** White card on a 1px border ring with a hairline drop, 14px corners. */
 export const cardClass =
-  "rounded-[14px] bg-card shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(0_0_0/0.04)]"
+  "rounded-[14px] bg-card shadow-[0_0_0_1px_var(--border),0_1px_2px_var(--shadow-color)]"
 
 export function PageTitle({ children }: { children: ReactNode }) {
   return (
@@ -48,7 +48,7 @@ export function Crumbs({ items }: { items: Crumb[] }) {
             {item.href ? (
               <Link
                 href={item.href}
-                className="rounded-sm transition-colors duration-80 outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+                className="rounded-sm transition-colors duration-80 outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-focus-ring"
               >
                 {item.label}
               </Link>

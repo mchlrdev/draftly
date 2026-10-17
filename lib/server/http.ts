@@ -72,10 +72,10 @@ export async function readJson(req: Request): Promise<Record<string, unknown>> {
   try {
     data = JSON.parse(text)
   } catch {
-    throw new HttpError(400, "Ungültige Anfrage.")
+    throw new HttpError(400, "Ungültige Anfrage. Bitte lade die Seite neu.")
   }
   if (!data || typeof data !== "object" || Array.isArray(data))
-    throw new HttpError(400, "Ungültige Anfrage.")
+    throw new HttpError(400, "Ungültige Anfrage. Bitte lade die Seite neu.")
   return data as Record<string, unknown>
 }
 
