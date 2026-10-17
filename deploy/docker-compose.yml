@@ -1,0 +1,31 @@
+# VPS compose file. Lives at /docker/draftly/docker-compose.yml next to a .env
+# with ADMIN_PASSWORD. Pulls the image CI pushes to GHCR; nothing is built here.
+#
+# Update: docker compose pull && docker compose up -d
+name: draftly
+
+services:
+  draftly:
+    image: ghcr.io/mchlrdev/draftly:${DRAFTLY_TAG:-latest}
+    restart: unless-stopped
+
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      DRAFTLY_PUBLIC_ORIGIN: https://draftly.mchlr.de
+
+    volumes:
+      # SQLite database. Survives pulls, recreates and `docker compose down`.
+      - draftly-data:/data
+
+    # No published port: Traefik runs with network_mode: host and reaches the
+    # container on its bridge IP.
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.draftly.rule: Host(`draftly.mchlr.de`)
+      traefik.http.routers.draftly.entrypoints: websecure
+      traefik.http.routers.draftly.tls: "true"
+      traefik.http.routers.draftly.tls.certresolver: letsencrypt
+      traefik.http.services.draftly.loadbalancer.server.port: "3000"
+
+volumes:
+  draftly-data:
