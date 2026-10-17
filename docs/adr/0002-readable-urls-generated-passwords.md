@@ -1,0 +1,3 @@
+# Readable slugs plus a generated password per draft
+
+A draft is reached at `/<project-slug>/<draft-slug>`, both chosen by the operator. Access is a generated password stored as a hash, shown in plaintext once, then only rotatable. Unguessable tokens in the URL were rejected because the operator needs a link they can say out loud. One password for a whole project was rejected because readable slugs are guessable and would leak a later draft. Accounts were rejected for reviewers. The operator authenticates separately at `/admin` with a session cookie and then skips draft passwords. `/<project-slug>` without a draft is 404; it is not a listing and not a redirect.
