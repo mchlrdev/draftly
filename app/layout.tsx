@@ -11,8 +11,8 @@ const inter = Inter({ subsets: ["latin"], axes: ["opsz"], variable: "--font-sans
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "My app",
-  description: "Built with Fluid Functionalism.",
+  title: "Draftly",
+  description: "HTML-Entwürfe prüfen und kommentieren.",
 };
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="de"
       suppressHydrationWarning
       className={`${inter.variable} ${mono.variable} font-sans antialiased`}
     >
