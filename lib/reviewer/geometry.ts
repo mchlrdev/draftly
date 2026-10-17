@@ -11,6 +11,8 @@ export const FIXED_PAD_Y = 40
 export interface StageLayout {
   /** Uniform scale applied to the page wrapper. Never above 1. */
   scale: number
+  /** The scale "Einpassen" would use: fits the available width, max 1. */
+  fitScale: number
   /** CSS width of the iframe and the design-space wrapper, before scaling. */
   frameWidth: number
   /** On-screen width after scaling (frameWidth * scale). */
@@ -19,38 +21,75 @@ export interface StageLayout {
   offsetX: number
   /** Top edge of the page inside the stage. */
   offsetY: number
+  /** Scrollable width of the stage: the available width, or wider when a
+   *  zoomed-in page overflows it (then the stage scrolls horizontally). */
+  stageWidth: number
 }
 
 /**
+ * Zoom of a fixed page: "fit" scales it down to the available width (never
+ * up), a number is an explicit scale. Either way the scale stays at most 1.
+ */
+export type Zoom = "fit" | number
+
+/** The explicit zoom steps the toolbar's −/+ walk through. */
+export const ZOOM_STEPS = [0.25, 0.5, 0.75, 1] as const
+
+/**
  * Fixed: the page keeps its design width, scales down evenly to fit a
- * narrower stage and is centred in letterbox bands on a wider one.
- * Fill: the iframe takes the stage width at scale 1, so nothing is zoomed.
+ * narrower stage (or to the chosen zoom) and is centred in letterbox bands
+ * on a wider one. Fill: the iframe takes the stage width at scale 1, so
+ * nothing is zoomed and `zoom` is ignored.
  */
 export function computeStageLayout(input: {
   display: DisplayMode
   designWidth: number
   availableWidth: number
+  zoom?: Zoom
 }): StageLayout {
   const available = Math.max(0, input.availableWidth)
   if (input.display === "fill") {
     return {
       scale: 1,
+      fitScale: 1,
       frameWidth: available,
       renderedWidth: available,
       offsetX: 0,
       offsetY: 0,
+      stageWidth: available,
     }
   }
   const designWidth = input.designWidth > 0 ? input.designWidth : 1
-  const scale = available > 0 ? Math.min(1, available / designWidth) : 1
+  const fitScale = available > 0 ? Math.min(1, available / designWidth) : 1
+  const zoom = input.zoom ?? "fit"
+  const scale = zoom === "fit" ? fitScale : clampZoom(zoom)
   const renderedWidth = designWidth * scale
   return {
     scale,
+    fitScale,
     frameWidth: designWidth,
     renderedWidth,
     offsetX: Math.max(0, (available - renderedWidth) / 2),
     offsetY: FIXED_PAD_Y,
+    stageWidth: Math.max(available, renderedWidth),
   }
+}
+
+/** An explicit zoom, kept within the smallest step and 100%. */
+export function clampZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return 1
+  return clamp(zoom, ZOOM_STEPS[0], 1)
+}
+
+/** The next explicit step above (+1) or below (-1) the scale shown now. */
+export function stepZoom(current: number, direction: 1 | -1): number {
+  const eps = 0.001
+  if (direction > 0) {
+    return ZOOM_STEPS.find((s) => s > current + eps) ?? 1
+  }
+  return (
+    [...ZOOM_STEPS].reverse().find((s) => s < current - eps) ?? ZOOM_STEPS[0]
+  )
 }
 
 export interface Point {

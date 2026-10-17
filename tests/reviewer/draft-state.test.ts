@@ -43,6 +43,7 @@ const thread = (
 function snapshot(threads: Thread[] = []): DraftSnapshot {
   return {
     operator: false,
+    operatorName: null,
     threads,
     draft: {
       slug: "v4",

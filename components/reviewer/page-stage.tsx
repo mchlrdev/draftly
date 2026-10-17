@@ -17,6 +17,7 @@ import {
   designToStage,
   placePopover,
   type Point,
+  type Zoom,
 } from "@/lib/reviewer/geometry"
 import { reviewerApi } from "@/lib/reviewer/api"
 import { DraftPin, PinButton } from "@/components/reviewer/pin-badge"
@@ -30,6 +31,19 @@ import type { NumberedThread } from "@/components/reviewer/comments-sidebar"
 // and scaled by lib/reviewer/geometry, with the click overlay and pins in the
 // same scaled wrapper so their x/y are design pixels. Popovers sit in the
 // unscaled layer beside it, so their text never shrinks with the page.
+//
+// The stage is inset from the window and clipped to a rounded surface: the
+// letterbox bands, the page and the popovers all scroll inside it. A fixed
+// page is shown at the chosen zoom (fit by default); a zoom wider than the
+// stage scrolls sideways. Pins and clicks stay in design pixels throughout.
+
+/** Inset of the rounded stage from the window edges (the right inset is
+ *  the sidebar gutter). */
+const STAGE_INSET = 8
+/** Corner of the clipped stage surface. The fixed page inside sits 40px
+ *  below its top edge, too far in to share the corner, so it keeps its own
+ *  small radius; a fill page reaches the edges and is clipped by this one. */
+const STAGE_RADIUS = 12
 
 // Paper: thread popover top = pin centre + 22, composer top = pin centre - 14.
 const THREAD_DY = 22
@@ -38,6 +52,8 @@ const COMPOSER_DY = -14
 export function PageStage({
   page,
   letterbox,
+  zoom,
+  onScaleChange,
   pins,
   openThread,
   composer,
@@ -50,6 +66,9 @@ export function PageStage({
 }: {
   page: Page
   letterbox: string
+  zoom: Zoom
+  /** Reports the scale shown now and the fit scale, for the zoom control. */
+  onScaleChange: (scale: number) => void
   /** Pins to show (already filtered); the open thread is always included. */
   pins: NumberedThread[]
   openThread: NumberedThread | null
@@ -63,7 +82,6 @@ export function PageStage({
 }) {
   const { draftRef } = useViewer()
   const rootRef = useRef<HTMLDivElement>(null)
-  const sizerRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [available, setAvailable] = useState({ width: 0, height: 0 })
   const frameKey = `${page.id}:${page.updatedAt}`
@@ -79,21 +97,20 @@ export function PageStage({
   } | null>(null)
   const contentHeight = measured?.key === frameKey ? measured.height : null
 
-  // The stage's inner width (what the page may use) and visible height.
+  // The clipped stage's inner size: what the page may use. Follows the
+  // window and the sidebar opening, closing and being resized.
   useLayoutEffect(() => {
-    const sizer = sizerRef.current
     const root = rootRef.current
-    if (!sizer || !root) return
+    if (!root) return
     const measure = () =>
       setAvailable((prev) => {
-        const next = { width: sizer.clientWidth, height: root.clientHeight }
+        const next = { width: root.clientWidth, height: root.clientHeight }
         return prev.width === next.width && prev.height === next.height
           ? prev
           : next
       })
     measure()
     const ro = new ResizeObserver(measure)
-    ro.observe(sizer)
     ro.observe(root)
     return () => ro.disconnect()
   }, [])
@@ -102,7 +119,12 @@ export function PageStage({
     display: page.display,
     designWidth: page.designWidth,
     availableWidth: available.width,
+    zoom,
   })
+
+  useEffect(() => {
+    if (available.width > 0) onScaleChange(layout.scale)
+  }, [layout.scale, available.width, onScaleChange])
 
   // Fill pages reach at least to the bottom of the stage, like the artboard.
   const minFrameHeight = page.display === "fill" ? available.height : 0
@@ -192,7 +214,7 @@ export function PageStage({
     placePopover({
       anchor: designToStage(openThread.thread, layout),
       width: POPOVER_WIDTH,
-      containerWidth: available.width,
+      containerWidth: layout.stageWidth,
       dy: THREAD_DY,
     })
   const composerPlacement =
@@ -200,116 +222,136 @@ export function PageStage({
     placePopover({
       anchor: designToStage(composer, layout),
       width: POPOVER_WIDTH,
-      containerWidth: available.width,
+      containerWidth: layout.stageWidth,
       dy: COMPOSER_DY,
     })
 
   return (
     <div
-      ref={rootRef}
-      className="relative min-h-0 min-w-0 flex-1"
-      style={{ backgroundColor: letterbox }}
+      className="flex min-h-0 min-w-0 flex-1"
+      style={{
+        paddingTop: STAGE_INSET,
+        paddingBottom: STAGE_INSET,
+        paddingLeft: STAGE_INSET,
+      }}
     >
-      <ScrollArea className="absolute inset-0">
-        <div
-          ref={sizerRef}
-          className="relative w-full"
-          style={{ height: stageHeight }}
-        >
+      <div
+        ref={rootRef}
+        className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
+        style={{ backgroundColor: letterbox, borderRadius: STAGE_RADIUS }}
+      >
+        <ScrollArea className="absolute inset-0" orientation="both">
           <div
-            className="absolute overflow-hidden"
-            style={{
-              left: layout.offsetX,
-              top: layout.offsetY,
-              width: layout.renderedWidth,
-              height: scaledHeight,
-              borderRadius: page.display === "fixed" ? 2 : 0,
-            }}
+            className="relative"
+            style={{ width: layout.stageWidth, height: stageHeight }}
           >
             <div
-              className="relative origin-top-left"
+              className="absolute overflow-hidden"
               style={{
-                width: layout.frameWidth,
-                height: frameHeight,
-                transform:
-                  layout.scale === 1 ? undefined : `scale(${layout.scale})`,
+                left: layout.offsetX,
+                top: layout.offsetY,
+                width: layout.renderedWidth,
+                height: scaledHeight,
+                borderRadius: page.display === "fixed" ? 2 : 0,
               }}
             >
-              <iframe
-                key={frameKey}
-                ref={frameRef}
-                title={page.name}
-                src={reviewerApi.pageHtmlUrl(draftRef, page.id, page.updatedAt)}
-                // Same origin so the height can be read; no allow-scripts.
-                sandbox="allow-same-origin"
-                tabIndex={-1}
-                className="absolute inset-0 block size-full border-0 bg-background transition-opacity duration-160"
-                style={{ opacity: ready ? 1 : 0 }}
-                onLoad={() => {
-                  frameKeyRef.current = frameKey
-                  setLoadedKey(frameKey)
-                  measureFrame()
-                }}
-              />
-              {/* Click overlay: the page never receives pointer events. */}
               <div
-                aria-label="Design. Klicken, um einen Pin zu setzen."
-                className="absolute inset-0 cursor-crosshair"
-                onClick={onOverlayClick}
-              />
-              {pins.map(({ thread, number }) => (
-                <PinButton
-                  key={thread.id}
-                  data-thread-id={thread.id}
-                  number={number}
-                  resolved={thread.status === "resolved"}
-                  active={openThread?.thread.id === thread.id}
-                  aria-label={`Kommentar ${number} öffnen`}
-                  className="absolute z-10"
-                  style={pinStyle(thread)}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (openThread?.thread.id === thread.id) onCloseThread()
-                    else onOpenThread(thread.id)
+                className="relative origin-top-left"
+                style={{
+                  width: layout.frameWidth,
+                  height: frameHeight,
+                  transform:
+                    layout.scale === 1 ? undefined : `scale(${layout.scale})`,
+                }}
+              >
+                <iframe
+                  key={frameKey}
+                  ref={frameRef}
+                  title={page.name}
+                  src={reviewerApi.pageHtmlUrl(
+                    draftRef,
+                    page.id,
+                    page.updatedAt
+                  )}
+                  // Same origin so the height can be read; no allow-scripts.
+                  sandbox="allow-same-origin"
+                  tabIndex={-1}
+                  className="absolute inset-0 block size-full border-0 bg-background transition-opacity duration-160"
+                  style={{ opacity: ready ? 1 : 0 }}
+                  onLoad={() => {
+                    frameKeyRef.current = frameKey
+                    setLoadedKey(frameKey)
+                    measureFrame()
                   }}
                 />
-              ))}
-              {composer && (
-                <DraftPin
-                  style={{
-                    position: "absolute",
-                    zIndex: 10,
-                    ...pinStyle(composer),
-                  }}
+                {/* Click overlay: the page never receives pointer events. */}
+                <div
+                  aria-label="Design. Klicken, um einen Pin zu setzen."
+                  className="absolute inset-0 cursor-crosshair"
+                  onClick={onOverlayClick}
+                />
+                {pins.map(({ thread, number }) => (
+                  <PinButton
+                    key={thread.id}
+                    data-thread-id={thread.id}
+                    number={number}
+                    resolved={thread.status === "resolved"}
+                    active={openThread?.thread.id === thread.id}
+                    aria-label={`Kommentar ${number} öffnen`}
+                    className="absolute z-10"
+                    style={pinStyle(thread)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (openThread?.thread.id === thread.id) onCloseThread()
+                      else onOpenThread(thread.id)
+                    }}
+                  />
+                ))}
+                {composer && (
+                  <DraftPin
+                    style={{
+                      position: "absolute",
+                      zIndex: 10,
+                      ...pinStyle(composer),
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {openThread && threadPlacement && (
+                <ThreadPopover
+                  key={`t-${openThread.thread.id}`}
+                  thread={openThread.thread}
+                  number={openThread.number}
+                  placement={threadPlacement}
+                  onClose={onCloseThread}
                 />
               )}
-            </div>
+              {composer && composerPlacement && (
+                <ComposerPopover
+                  key={`c-${composer.x}-${composer.y}`}
+                  placement={composerPlacement}
+                  pageId={page.id}
+                  point={composer}
+                  onDone={onComposerDone}
+                  onCancel={onComposerCancel}
+                  onDraftChange={onComposerDraftChange}
+                />
+              )}
+            </AnimatePresence>
           </div>
-
-          <AnimatePresence>
-            {openThread && threadPlacement && (
-              <ThreadPopover
-                key={`t-${openThread.thread.id}`}
-                thread={openThread.thread}
-                number={openThread.number}
-                placement={threadPlacement}
-                onClose={onCloseThread}
-              />
-            )}
-            {composer && composerPlacement && (
-              <ComposerPopover
-                key={`c-${composer.x}-${composer.y}`}
-                placement={composerPlacement}
-                pageId={page.id}
-                point={composer}
-                onDone={onComposerDone}
-                onCancel={onComposerCancel}
-                onDraftChange={onComposerDraftChange}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+        {/* Hairline edge drawn above the content, so the rounded surface
+            reads against the window in light and dark mode whatever the
+            draft's letterbox colour is. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_var(--border)]"
+          style={{ borderRadius: STAGE_RADIUS }}
+        />
+      </div>
     </div>
   )
 }

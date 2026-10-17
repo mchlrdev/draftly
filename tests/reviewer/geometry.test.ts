@@ -5,6 +5,7 @@ import {
   computeStageLayout,
   designToStage,
   placePopover,
+  stepZoom,
 } from "../../lib/reviewer/geometry"
 
 describe("computeStageLayout", () => {
@@ -51,10 +52,12 @@ describe("computeStageLayout", () => {
     })
     expect(l).toEqual({
       scale: 1,
+      fitScale: 1,
       frameWidth: 1080,
       renderedWidth: 1080,
       offsetX: 0,
       offsetY: 0,
+      stageWidth: 1080,
     })
   })
 
@@ -76,6 +79,89 @@ describe("computeStageLayout", () => {
     })
     expect(l.scale).toBe(1)
     expect(l.offsetX).toBe(0)
+  })
+})
+
+describe("computeStageLayout with zoom", () => {
+  it("fit is the default and matches the available width", () => {
+    const l = computeStageLayout({
+      display: "fixed",
+      designWidth: 1440,
+      availableWidth: 1080,
+      zoom: "fit",
+    })
+    expect(l.scale).toBe(0.75)
+    expect(l.fitScale).toBe(0.75)
+    expect(l.stageWidth).toBe(1080)
+  })
+
+  it("an explicit zoom below fit centres the page in letterbox bands", () => {
+    const l = computeStageLayout({
+      display: "fixed",
+      designWidth: 1440,
+      availableWidth: 1080,
+      zoom: 0.5,
+    })
+    expect(l.scale).toBe(0.5)
+    expect(l.fitScale).toBe(0.75)
+    expect(l.renderedWidth).toBe(720)
+    expect(l.offsetX).toBe(180)
+    expect(l.stageWidth).toBe(1080)
+  })
+
+  it("an explicit zoom above fit widens the stage so it scrolls sideways", () => {
+    const l = computeStageLayout({
+      display: "fixed",
+      designWidth: 1440,
+      availableWidth: 1080,
+      zoom: 1,
+    })
+    expect(l.scale).toBe(1)
+    expect(l.renderedWidth).toBe(1440)
+    expect(l.offsetX).toBe(0)
+    expect(l.stageWidth).toBe(1440)
+  })
+
+  it("never zooms above 100% or below the smallest step", () => {
+    const up = computeStageLayout({
+      display: "fixed",
+      designWidth: 720,
+      availableWidth: 1080,
+      zoom: 2,
+    })
+    expect(up.scale).toBe(1)
+    const down = computeStageLayout({
+      display: "fixed",
+      designWidth: 720,
+      availableWidth: 1080,
+      zoom: 0.01,
+    })
+    expect(down.scale).toBe(0.25)
+  })
+
+  it("ignores zoom on a fill page", () => {
+    const l = computeStageLayout({
+      display: "fill",
+      designWidth: 1440,
+      availableWidth: 1080,
+      zoom: 0.5,
+    })
+    expect(l.scale).toBe(1)
+    expect(l.frameWidth).toBe(1080)
+  })
+})
+
+describe("stepZoom", () => {
+  it("steps to the next step above or below the current scale", () => {
+    expect(stepZoom(0.63, 1)).toBe(0.75)
+    expect(stepZoom(0.63, -1)).toBe(0.5)
+    expect(stepZoom(0.75, 1)).toBe(1)
+    expect(stepZoom(0.75, -1)).toBe(0.5)
+  })
+
+  it("stops at the ends", () => {
+    expect(stepZoom(1, 1)).toBe(1)
+    expect(stepZoom(0.25, -1)).toBe(0.25)
   })
 })
 
@@ -128,6 +214,73 @@ describe("designToStage", () => {
       const back = clientToDesign(
         { clientX: stage.x, clientY: stage.y },
         rect,
+        layout.scale
+      )
+      expect(back.x).toBeCloseTo(design.x, 1)
+      expect(back.y).toBeCloseTo(design.y, 1)
+    }
+  })
+})
+
+describe("pins across zoom levels", () => {
+  it("a click placed at 50% lands on the same design spot at 100%", () => {
+    const at = (zoom: number) =>
+      computeStageLayout({
+        display: "fixed",
+        designWidth: 1440,
+        availableWidth: 1080,
+        zoom,
+      })
+    const half = at(0.5)
+    // Click 300/200 screen pixels into the page at 50%.
+    const rectHalf = {
+      left: half.offsetX,
+      top: half.offsetY,
+      width: half.renderedWidth,
+      height: 2000 * half.scale,
+    }
+    const design = clientToDesign(
+      { clientX: rectHalf.left + 300, clientY: rectHalf.top + 200 },
+      rectHalf,
+      half.scale
+    )
+    expect(design).toEqual({ x: 600, y: 400 })
+
+    const full = at(1)
+    const pin = designToStage(design, full)
+    expect(pin).toEqual({
+      x: full.offsetX + 600,
+      y: full.offsetY + 400,
+    })
+    const rectFull = {
+      left: full.offsetX,
+      top: full.offsetY,
+      width: full.renderedWidth,
+      height: 2000,
+    }
+    expect(
+      clientToDesign({ clientX: pin.x, clientY: pin.y }, rectFull, full.scale)
+    ).toEqual(design)
+  })
+
+  it("round-trips at every zoom step", () => {
+    for (const zoom of ["fit", 0.25, 0.5, 0.75, 1] as const) {
+      const layout = computeStageLayout({
+        display: "fixed",
+        designWidth: 1440,
+        availableWidth: 900,
+        zoom,
+      })
+      const design = { x: 1234, y: 567 }
+      const stage = designToStage(design, layout)
+      const back = clientToDesign(
+        { clientX: stage.x, clientY: stage.y },
+        {
+          left: layout.offsetX,
+          top: layout.offsetY,
+          width: layout.renderedWidth,
+          height: 3000 * layout.scale,
+        },
         layout.scale
       )
       expect(back.x).toBeCloseTo(design.x, 1)

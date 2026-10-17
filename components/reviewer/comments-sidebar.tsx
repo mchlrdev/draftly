@@ -55,7 +55,7 @@ export function CommentsSidebar({
   return (
     <aside
       aria-label="Kommentare"
-      className="flex w-90 shrink-0 flex-col gap-4 border-l border-border bg-background p-4"
+      className="flex min-w-0 flex-1 flex-col gap-4 bg-background py-4 pr-4 pl-2"
     >
       <div className="flex items-center justify-between">
         <h2
