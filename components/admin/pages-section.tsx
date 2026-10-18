@@ -5,18 +5,25 @@ import { useRouter } from "next/navigation"
 import { Reorder, useDragControls } from "motion/react"
 import { Button } from "@/components/ui/button"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select"
-import {
   OperatorDialog,
   CancelButton,
   DangerButton,
   ErrorText,
 } from "@/components/admin/operator-dialog"
 import { PageFormDialog } from "@/components/admin/page-form-dialog"
+import {
+  BatchUploadDialog,
+  readUploadRows,
+  type UploadRow,
+} from "@/components/admin/batch-upload-dialog"
+import { PageDropTarget } from "@/components/admin/file-drop"
+import {
+  DisplaySelect,
+  Grip,
+  arrowDelta,
+  gripClass,
+  inlineFieldClass,
+} from "@/components/admin/page-fields"
 import { EmptyState, semibold } from "@/components/admin/text"
 import { operatorApi } from "@/lib/admin/api"
 import { designWidthProblem } from "@/lib/admin/format"
@@ -31,7 +38,9 @@ import { cn } from "@/lib/utils"
 // "Seiten" of artboard "Draft · Aktionen": upload, replace, delete, display
 // mode and design width right on the row (saved on change, optimistic), and
 // reorder. Reorder by dragging the grip, or focus the grip and use the arrow
-// keys; either way the new order is sent once it settles.
+// keys; either way the new order is sent once it settles. HTML files dropped
+// anywhere on the page (or several picked in "Seite hinzufügen") open
+// "Seiten hinzufügen" to name, set up and order them before the upload.
 // Rows carry several actions each, so they get no fluid hover (a wrong
 // click here would hurt).
 
@@ -61,6 +70,19 @@ export function PagesSection({ draft }: { draft: Draft }) {
   )
   const openForm = (page?: Page) =>
     setForm((f) => ({ key: f.key + 1, page, open: true }))
+
+  // "Seiten hinzufügen" for several files, keyed per opening like the form.
+  const [batch, setBatch] = useState<{
+    key: number
+    open: boolean
+    rows: UploadRow[]
+    skipped: string[]
+  }>({ key: 0, open: false, rows: [], skipped: [] })
+  const openBatch = async (files: File[]) => {
+    const { rows, skipped } = await readUploadRows(files)
+    setForm((f) => ({ ...f, open: false }))
+    setBatch((b) => ({ key: b.key + 1, open: true, rows, skipped }))
+  }
 
   const [toDelete, setToDelete] = useState<Page | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -127,8 +149,8 @@ export function PagesSection({ draft }: { draft: Draft }) {
 
       {pages.length === 0 ? (
         <EmptyState title="Noch keine Seite.">
-          Lade eine HTML-Datei hoch. Der Link zeigt die Seiten in dieser
-          Reihenfolge.
+          Lade HTML-Dateien hoch oder zieh sie auf diese Seite. Der Link zeigt
+          die Seiten in dieser Reihenfolge.
         </EmptyState>
       ) : (
         <Reorder.Group
@@ -170,6 +192,22 @@ export function PagesSection({ draft }: { draft: Draft }) {
         projectSlug={draft.projectSlug}
         draftSlug={draft.slug}
         page={form.page}
+        onMany={(files) => void openBatch(files)}
+      />
+
+      <BatchUploadDialog
+        key={`batch-${batch.key}`}
+        open={batch.open}
+        onOpenChange={(open) => setBatch((b) => ({ ...b, open }))}
+        projectSlug={draft.projectSlug}
+        draftSlug={draft.slug}
+        initialRows={batch.rows}
+        initialSkipped={batch.skipped}
+      />
+
+      <PageDropTarget
+        enabled={!form.open && !batch.open && !deleteOpen}
+        onFiles={(files) => void openBatch(files)}
       />
 
       <OperatorDialog
@@ -251,9 +289,7 @@ function PageRow({
     router.refresh()
   }
 
-  const changeDisplay = (next: string) => {
-    if (next !== "fixed" && next !== "fill") return
-    if (next === display) return
+  const changeDisplay = (next: DisplayMode) => {
     setDisplay(next)
     void save({ display: next })
   }
@@ -272,13 +308,10 @@ function PageRow({
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-      e.preventDefault()
-      onMove(-1)
-    } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-      e.preventDefault()
-      onMove(1)
-    }
+    const delta = arrowDelta(e)
+    if (!delta) return
+    e.preventDefault()
+    onMove(delta)
   }
 
   return (
@@ -307,11 +340,7 @@ function PageRow({
             controls.start(e)
           }}
           onKeyDown={onKeyDown}
-          className={cn(
-            "-ml-1 flex h-7 w-6 shrink-0 touch-none items-center justify-center rounded-md outline-none",
-            "transition-colors duration-80 hover:bg-hover focus-visible:ring-1 focus-visible:ring-focus-ring",
-            dragging ? "cursor-grabbing" : "cursor-grab"
-          )}
+          className={gripClass(dragging)}
         >
           <Grip />
         </button>
@@ -326,20 +355,11 @@ function PageRow({
         </span>
         {/* The row is a card (surface 2): the menu opens a step above it. */}
         <SurfaceProvider value={2}>
-          <Select value={display} onValueChange={changeDisplay}>
-            <SelectTrigger
-              aria-label={`Darstellung von „${page.name}“`}
-              className="w-24 min-w-0 shrink-0"
-            />
-            <SelectContent>
-              <SelectItem index={0} value="fixed">
-                Fix
-              </SelectItem>
-              <SelectItem index={1} value="fill">
-                Fill
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          <DisplaySelect
+            value={display}
+            onChange={changeDisplay}
+            label={`Darstellung von „${page.name}“`}
+          />
         </SurfaceProvider>
         <span className="flex w-24 shrink-0 items-center gap-1">
           {display === "fixed" && (
@@ -417,12 +437,7 @@ function WidthField({
             onCancel()
           }
         }}
-        className={cn(
-          field,
-          "h-7 w-16 rounded-md bg-background px-2 text-right text-foreground tabular-nums outline-none",
-          "shadow-[inset_0_0_0_1px_var(--input)] transition-shadow duration-80 hover:shadow-[inset_0_0_0_1px_var(--ring)]",
-          "focus-visible:ring-1 focus-visible:ring-focus-ring"
-        )}
+        className={cn(field, inlineFieldClass, "w-16 text-right tabular-nums")}
       />
       <span
         aria-hidden
@@ -431,16 +446,5 @@ function WidthField({
         px
       </span>
     </>
-  )
-}
-
-/** The 2×3 dot grip from the artboard. */
-function Grip() {
-  return (
-    <span aria-hidden className="grid grid-cols-2 gap-0.75">
-      {Array.from({ length: 6 }, (_, i) => (
-        <span key={i} className="size-0.75 rounded-xs bg-muted-foreground" />
-      ))}
-    </span>
   )
 }

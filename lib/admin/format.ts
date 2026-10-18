@@ -2,6 +2,8 @@
 // unit-tested and called from server and client components alike.
 
 import type { DisplayMode, DraftSummary, Page, Project } from "@/lib/api-types"
+// Relative: the unit tests run without the "@/" alias for values.
+import { DEFAULT_DESIGN_WIDTH } from "../api-types"
 
 /** "Fix · 1440" or "Fill". */
 export function displayLabel(
@@ -181,4 +183,15 @@ export function designWidthProblem(
   if (n < 320 || n > 7680)
     return "Bitte einen Wert zwischen 320 und 7680 px eingeben."
   return null
+}
+
+/**
+ * The design width to send. A Fill page keeps a width for a later switch to
+ * Fix; its field is hidden, so an invalid value falls back to the default
+ * instead of blocking the upload.
+ */
+export function designWidthValue(value: string): number {
+  return designWidthProblem(value, "fixed") === null
+    ? Number(value)
+    : DEFAULT_DESIGN_WIDTH
 }

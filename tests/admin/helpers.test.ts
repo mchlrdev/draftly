@@ -7,6 +7,7 @@ import {
   deleteProjectAction,
   deleteProjectText,
   designWidthProblem,
+  designWidthValue,
   displayLabel,
   displayUrl,
   draftMeta,
@@ -192,5 +193,15 @@ describe("format", () => {
       "Bitte einen Wert zwischen 320 und 7680 px eingeben."
     )
     expect(designWidthProblem("", "fill")).toBeNull()
+  })
+})
+
+describe("designWidthValue", () => {
+  it("sends a valid width as entered", () => {
+    expect(designWidthValue("1280")).toBe(1280)
+  })
+  it("falls back to the default for a width the Fill field hides", () => {
+    expect(designWidthValue("100")).toBe(1440)
+    expect(designWidthValue("")).toBe(1440)
   })
 })

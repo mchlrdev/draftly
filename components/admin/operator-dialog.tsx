@@ -12,7 +12,7 @@ import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
 // The dialog frame every operator dialog shares: the FF Dialog at the Paper
-// width (440px, 480px for the upload forms), 28px padding, title +
+// width (440px, 480px for the upload forms, 720px for the upload list), 28px padding, title +
 // description, body, and a right-aligned action row. The body is a form so
 // Enter submits.
 
@@ -26,6 +26,8 @@ export interface OperatorDialogProps {
   actions: ReactNode
   onSubmit?: () => void
   wide?: boolean
+  /** The page list of "Seiten hinzufügen". */
+  list?: boolean
 }
 
 export function OperatorDialog({
@@ -37,6 +39,7 @@ export function OperatorDialog({
   actions,
   onSubmit,
   wide,
+  list,
 }: OperatorDialogProps) {
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -46,7 +49,10 @@ export function OperatorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className={cn("p-7", wide ? "max-w-[480px]" : "max-w-[440px]")}
+        className={cn(
+          "p-7",
+          list ? "max-w-[720px]" : wide ? "max-w-[480px]" : "max-w-[440px]"
+        )}
       >
         <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
           <div className="flex flex-col gap-1.5">

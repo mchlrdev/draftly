@@ -11,10 +11,13 @@ import {
   ErrorText,
   FieldBlock,
 } from "@/components/admin/operator-dialog"
+import { useDropZone } from "@/components/admin/file-drop"
 import { semibold } from "@/components/admin/text"
 import { operatorApi } from "@/lib/admin/api"
+import { isHtmlFile } from "@/lib/admin/files"
 import {
   designWidthProblem,
+  designWidthValue,
   externalUrlMessage,
   fileSize,
   findExternalUrls,
@@ -30,7 +33,9 @@ import { cn } from "@/lib/utils"
 
 // Artboards "HTML laden" (upload) and "Seite ersetzen" (replace). The file
 // is read in the browser first, so a page with http(s) URLs is refused before
-// the upload; the server's own 422 lands in the same place.
+// the upload; the server's own 422 lands in the same place. Files can be
+// picked or dropped on the file block. Picking or dropping several while
+// adding hands them to "Seiten hinzufügen" (onMany).
 
 interface PickedFile {
   file: File
@@ -43,6 +48,7 @@ export function PageFormDialog({
   projectSlug,
   draftSlug,
   page,
+  onMany,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -50,6 +56,8 @@ export function PageFormDialog({
   draftSlug: string
   /** Set for "Seite ersetzen". */
   page?: Page
+  /** Adding only: several files were picked or dropped. */
+  onMany?: (files: File[]) => void
 }) {
   const router = useRouter()
   const inputId = useId()
@@ -81,6 +89,20 @@ export function PageFormDialog({
     if (!nameTouched) setName(nameFromFilename(file.name))
   }
 
+  const take = (files: File[]) => {
+    if (files.length > 1 && onMany && !replacing) {
+      onMany(files)
+      return
+    }
+    const file = files[0]
+    if (file && !isHtmlFile(file)) {
+      setServerError(`„${file.name}“ ist keine HTML-Datei.`)
+      return
+    }
+    void pick(file)
+  }
+  const drop = useDropZone(take, !pending)
+
   const submit = async () => {
     if (!canSubmit || !picked) return
     setPending(true)
@@ -88,10 +110,7 @@ export function PageFormDialog({
       file: picked.file,
       name: name.trim(),
       display,
-      designWidth:
-        display === "fixed"
-          ? Number(width)
-          : Number(width) || DEFAULT_DESIGN_WIDTH,
+      designWidth: designWidthValue(width),
     }
     const res = page
       ? await operatorApi.replacePage(projectSlug, draftSlug, page.id, form)
@@ -135,22 +154,25 @@ export function PageFormDialog({
         ref={fileInput}
         id={inputId}
         type="file"
+        multiple={!replacing && Boolean(onMany)}
         accept=".html,.htm,text/html"
         className="sr-only"
         tabIndex={-1}
         onChange={(e) => {
-          void pick(e.target.files?.[0])
+          take(Array.from(e.target.files ?? []))
           e.target.value = ""
         }}
       />
-      <div className="flex flex-col gap-2">
+      <div {...drop.props} className="flex flex-col gap-2">
         {picked ? (
           <div
             className={cn(
-              "flex items-center gap-3 rounded-[10px] p-3.5",
-              fileProblem
-                ? "bg-destructive-light shadow-[inset_0_0_0_1px_var(--destructive)]"
-                : "bg-muted/50 shadow-[inset_0_0_0_1px_var(--border)]"
+              "flex items-center gap-3 rounded-[10px] p-3.5 transition-shadow duration-80",
+              drop.over
+                ? "bg-hover shadow-[inset_0_0_0_1px_var(--ring)]"
+                : fileProblem
+                  ? "bg-destructive-light shadow-[inset_0_0_0_1px_var(--destructive)]"
+                  : "bg-muted/50 shadow-[inset_0_0_0_1px_var(--border)]"
             )}
           >
             <span
@@ -199,11 +221,16 @@ export function PageFormDialog({
             onClick={() => fileInput.current?.click()}
             className={cn(
               typeClass("body", "compact"),
-              "flex h-16 items-center justify-center rounded-[10px] border border-dashed border-border text-muted-foreground transition-colors duration-80 outline-none hover:bg-hover hover:text-foreground focus-visible:ring-1 focus-visible:ring-focus-ring"
+              "flex h-16 items-center justify-center rounded-[10px] border border-dashed text-muted-foreground transition-colors duration-80 outline-none hover:bg-hover hover:text-foreground focus-visible:ring-1 focus-visible:ring-focus-ring",
+              drop.over
+                ? "border-ring bg-hover text-foreground"
+                : "border-border"
             )}
             style={semibold}
           >
-            HTML-Datei wählen
+            {replacing || !onMany
+              ? "HTML-Datei wählen oder hierher ziehen"
+              : "HTML-Dateien wählen oder hierher ziehen"}
           </button>
         )}
         {fileProblem && <ErrorText>{fileProblem}</ErrorText>}
