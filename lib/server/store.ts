@@ -17,6 +17,7 @@ import {
   type Thread,
   type ThreadStatus,
 } from "@/lib/api-types"
+import { findExternalUrls } from "@/lib/admin/format"
 import { db, now, tx } from "./db"
 import {
   decryptPassword,
@@ -202,11 +203,11 @@ function coord(v: unknown, axis: string): number {
 
 export const MAX_HTML_BYTES = 25 * 1024 * 1024
 
-/** Uploaded HTML must be self-contained: no http(s) URL anywhere. */
+/** Uploaded HTML must be self-contained: no http(s) URL anywhere (W3C namespace ids aside). */
 export function validateHtml(html: string): string {
   if (!html.trim())
     throw unprocessable("Die Datei ist leer. Bitte eine andere wählen.")
-  if (/https?:/i.test(html))
+  if (findExternalUrls(html).length)
     throw unprocessable(
       "Die Datei enthält externe URLs (http, https). Bitte Bilder, Schriften und Styles direkt einbetten."
     )

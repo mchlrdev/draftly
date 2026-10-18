@@ -83,7 +83,7 @@ Draftly is a single-operator app at `https://draftly.mchlr.de`. The operator log
 - Public URL shape is `/<project-slug>/<draft-slug>`. Project-only URLs 404. Reserved first segments: `admin`, `api`.
 - Reviewer auth is a generated password per draft, hashed at rest, plaintext shown once, afterwards only rotation (ADR-0002). After success, a draft-scoped cookie so they are not prompted every request.
 - Operator auth is one password from the environment, session cookie, HTTP-only. While that cookie is present, draft URLs skip the password gate and show moderation controls. There is no `?admin=` query token.
-- Pages are operator-uploaded HTML. The server rejects any file that contains `http:` or `https:` URLs. Styles and images must already be inline. Draftly does not pack or fetch assets. There is no Paper bridge in the product (ADR-0001).
+- Pages are operator-uploaded HTML. The server rejects any file that contains `http:` or `https:` URLs (W3C namespace and DTD identifiers like `http://www.w3.org/2000/svg` aside — they are never fetched). Styles and images must already be inline. Draftly does not pack or fetch assets. There is no Paper bridge in the product (ADR-0001).
 - The viewer loads the page in an iframe with sandbox and without scripts. An overlay captures clicks for pins. Coordinates are stored in design pixels relative to the page's top-left.
 - Fixed display: never scale above 1. If the viewer is narrower than design width, scale uniformly to fit width and keep vertical scroll. If wider, centre the page and fill leftover bands with the draft letterbox colour. Fill display: iframe matches viewer content width; do not upscale a fixed layout.
 - Iframe height is measured after load (same origin) from the page document.

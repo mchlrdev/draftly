@@ -80,6 +80,17 @@ describe("page upload", () => {
     expect(((await (await op.get(admin)).json()) as Draft).pageCount).toBe(1)
   })
 
+  it("accepts inline SVG with its W3C namespace", async () => {
+    const { op, admin } = await setupDraft()
+    const html = `<html><body><svg xmlns="http://www.w3.org/2000/svg"><use xlink:href="#a" xmlns:xlink="http://www.w3.org/1999/xlink"/></svg></body></html>`
+    const res = await upload(
+      op,
+      `${admin}/pages`,
+      pageForm({ html, name: "Svg" })
+    )
+    expect(res.status).toBe(201)
+  })
+
   it("rejects a missing file and bad display/width", async () => {
     const { op, admin } = await setupDraft()
     expect(

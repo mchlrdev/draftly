@@ -128,12 +128,16 @@ export function nameFromFilename(filename: string): string {
   return base ? base.charAt(0).toUpperCase() + base.slice(1) : ""
 }
 
+// XML namespaces and DTD ids (`xmlns="http://www.w3.org/2000/svg"`, the
+// XHTML doctype) are identifiers, never fetched, so every inline SVG has one.
+const W3C_IDENTIFIER = /^https?:\/\/www\.w3\.org\//i
+
 /** Every `http:` / `https:` URL in the HTML, in order, as the server rejects them. */
 export function findExternalUrls(html: string): string[] {
   const urls: string[] = []
   const re = /https?:[^\s"'<>()]*/gi
   let m: RegExpExecArray | null
-  while ((m = re.exec(html))) urls.push(m[0])
+  while ((m = re.exec(html))) if (!W3C_IDENTIFIER.test(m[0])) urls.push(m[0])
   return urls
 }
 

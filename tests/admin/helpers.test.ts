@@ -175,6 +175,11 @@ describe("format", () => {
       "2 externe URLs gefunden, z. B. https://app.paper.design/…/hero.png. Bilder und Fonts bitte inline einbetten."
     )
     expect(findExternalUrls("<p>self-contained</p>")).toEqual([])
+    expect(
+      findExternalUrls(
+        `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>`
+      )
+    ).toEqual([])
   })
 
   it("normalises letterbox colours", () => {
