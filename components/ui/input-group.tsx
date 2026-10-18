@@ -21,10 +21,10 @@ import { useFluidHover, useRegisterFluidHoverItem } from "@/hooks/use-fluid-hove
 
 // ---------------------------------------------------------------------------
 // InputGroup stacks labelled text fields that share one fluid hover scope.
-// At rest a field has no fill and no visible ring. The field nearest the
-// pointer shows a faint fill and its ring; the focused field lifts to the
-// card surface. There is no separate highlight element: each field draws its
-// own state.
+// At rest a field shows the page-floor fill and input ring so it reads as a field
+// on every surface step. The field nearest the pointer brightens its ring;
+// the focused field takes the full ring color. There is no separate highlight
+// element: each field draws its own state.
 // ---------------------------------------------------------------------------
 
 interface InputGroupContextValue {
@@ -147,9 +147,8 @@ const InputField = forwardRef<HTMLDivElement, InputFieldProps>(
     };
 
     // Input container classes. The first match wins: disabled, error,
-    // focused, hovered, rest. An error stays frameless at rest (the red label
-    // and message already carry it) and shows its red ring on hover or focus.
-    // Focus lifts the field to the card surface; hover only tints it.
+    // focused, hovered, rest. The fill stays on the page floor in every
+    // state, a recessed well on any surface; state moves only the ring.
     let bgClass: string;
     let ringClass: string;
 
@@ -157,17 +156,17 @@ const InputField = forwardRef<HTMLDivElement, InputFieldProps>(
       bgClass = "bg-transparent";
       ringClass = "ring-border";
     } else if (error) {
-      bgClass = isFocused ? "bg-card" : isActive ? "bg-destructive-light/60" : "bg-transparent";
-      ringClass = isFocused || isActive ? "ring-destructive/50" : "ring-transparent";
+      bgClass = isActive && !isFocused ? "bg-destructive-light/60" : "bg-background";
+      ringClass = isFocused || isActive ? "ring-destructive" : "ring-destructive/50";
     } else if (isFocused) {
-      bgClass = "bg-card";
-      ringClass = "ring-border";
+      bgClass = "bg-background";
+      ringClass = "ring-ring";
     } else if (isActive) {
-      bgClass = "bg-muted/50";
-      ringClass = "ring-border";
+      bgClass = "bg-background";
+      ringClass = "ring-ring/60";
     } else {
-      bgClass = "bg-transparent";
-      ringClass = "ring-transparent";
+      bgClass = "bg-background";
+      ringClass = "ring-input";
     }
 
     return (
@@ -194,8 +193,8 @@ const InputField = forwardRef<HTMLDivElement, InputFieldProps>(
           className={cn(
             labelHidden ? "sr-only" : "inline-grid",
             sizeClasses.text,
-            // One notch tighter than the ladder's control padding — the field
-            // ring is invisible at rest, so the roomier inset reads as a gap.
+            // One notch tighter than the ladder's control padding, so the
+            // label lines up with the field's text inset.
             !labelHidden && (compact ? "pl-2" : "pl-2.5")
           )}
         >

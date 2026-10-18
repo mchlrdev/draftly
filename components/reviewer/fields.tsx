@@ -10,14 +10,14 @@ import { useShape } from "@/lib/shape-context"
 import { fieldTouchClass, useSize } from "@/lib/size-context"
 import { fontWeights } from "@/lib/font-weight"
 
-// The always-framed text fields inside popovers (Paper: 1px border ring at
+// The always-framed text fields inside popovers (Paper: 1px input ring at
 // rest, a darker ring with a soft halo while focused). Unlike InputGroup's
 // frameless-at-rest fields, these sit on a white card and must read as
 // fields without a hover. Height follows the size ladder.
 
 const frame =
-  "w-full bg-card text-foreground placeholder:text-muted-foreground outline-none transition-shadow duration-80 " +
-  "shadow-[inset_0_0_0_1px_var(--border)] focus:shadow-[inset_0_0_0_1px_var(--ring),0_0_0_3px_var(--border)] " +
+  "w-full bg-background text-foreground placeholder:text-muted-foreground outline-none transition-shadow duration-80 " +
+  "shadow-[inset_0_0_0_1px_var(--input)] focus:shadow-[inset_0_0_0_1px_var(--ring),0_0_0_3px_var(--border)] " +
   "disabled:opacity-60"
 
 export const FramedInput = forwardRef<

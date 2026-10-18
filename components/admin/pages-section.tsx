@@ -328,7 +328,6 @@ function PageRow({
         <SurfaceProvider value={2}>
           <Select value={display} onValueChange={changeDisplay}>
             <SelectTrigger
-              variant="borderless"
               aria-label={`Darstellung von „${page.name}“`}
               className="w-24 min-w-0 shrink-0"
             />
@@ -420,8 +419,8 @@ function WidthField({
         }}
         className={cn(
           field,
-          "h-7 w-16 rounded-md bg-transparent px-2 text-right text-foreground tabular-nums outline-none",
-          "shadow-[inset_0_0_0_1px_var(--border)] transition-colors duration-80 hover:bg-hover",
+          "h-7 w-16 rounded-md bg-background px-2 text-right text-foreground tabular-nums outline-none",
+          "shadow-[inset_0_0_0_1px_var(--input)] transition-shadow duration-80 hover:shadow-[inset_0_0_0_1px_var(--ring)]",
           "focus-visible:ring-1 focus-visible:ring-focus-ring"
         )}
       />
