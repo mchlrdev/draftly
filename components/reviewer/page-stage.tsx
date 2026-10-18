@@ -240,7 +240,10 @@ export function PageStage({
         className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
         style={{ backgroundColor: letterbox, borderRadius: STAGE_RADIUS }}
       >
-        <ScrollArea className="absolute inset-0" orientation="both">
+        {/* size-full, not absolute inset-0: Base UI puts an inline
+            position: relative on the root, which would win over the class
+            and let the root grow to the page's height. */}
+        <ScrollArea className="size-full" orientation="both">
           <div
             className="relative"
             style={{ width: layout.stageWidth, height: stageHeight }}
