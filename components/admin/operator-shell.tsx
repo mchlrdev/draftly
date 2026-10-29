@@ -37,6 +37,7 @@ import {
   EditProjectDialog,
 } from "@/components/admin/edit-dialogs"
 import { OperatorSettingsDialog } from "@/components/admin/settings-dialog"
+import { AgentDialog } from "@/components/admin/agent-dialog"
 import { TrashIcon } from "@/components/admin/icons"
 import { useIcons } from "@/lib/icon-context"
 import { operatorApi } from "@/lib/admin/api"
@@ -49,12 +50,14 @@ import { cn } from "@/lib/utils"
 // The operator shell. The sidebar is the navigation: "Neues Projekt", then
 // every project as a collapsible row holding its drafts and a "Neuer Draft"
 // row. Each project and draft row carries a ⋯ menu (Bearbeiten, Löschen).
-// The footer shows the operator's name and opens settings and sign-out.
+// The footer shows the operator's name and opens settings, agent access and
+// sign-out.
 // Data comes from the server layout; mutations end in router.refresh().
 
 type Dialog =
   | { kind: "new-project" }
   | { kind: "settings" }
+  | { kind: "agents" }
   | { kind: "new-draft"; project: Project }
   | { kind: "edit-project"; project: Project }
   | { kind: "delete-project"; project: Project }
@@ -215,6 +218,12 @@ export function OperatorShell({
                 />
                 <MenuItem
                   index={1}
+                  icon={icons.brain}
+                  label="Agenten"
+                  onSelect={later(() => show({ kind: "agents" }))}
+                />
+                <MenuItem
+                  index={2}
                   icon={icons["arrow-left"]}
                   label="Abmelden"
                   onSelect={() => void logout()}
@@ -327,6 +336,8 @@ function ShellDialog({
       return <NewProjectDialog {...common} takenSlugs={projectSlugs} />
     case "settings":
       return <OperatorSettingsDialog {...common} operatorName={operatorName} />
+    case "agents":
+      return <AgentDialog {...common} />
     case "new-draft":
       return (
         <NewDraftDialog

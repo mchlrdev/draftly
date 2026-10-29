@@ -89,3 +89,13 @@ export const tooManyRequests = () =>
 
 /** Route handler context with typed dynamic params (independent of generated route types). */
 export type Params<K extends string> = { params: Promise<Record<K, string>> }
+
+/** The origin for links handed out (agent upload links, the skill):
+ *  `DRAFTLY_PUBLIC_ORIGIN`, else the request's own. */
+export function publicOrigin(req: Request): string {
+  const env = process.env.DRAFTLY_PUBLIC_ORIGIN?.replace(/\/+$/, "")
+  if (env) return env
+  const url = new URL(req.url)
+  const host = req.headers.get("host")
+  return host ? `${url.protocol}//${host}` : url.origin
+}

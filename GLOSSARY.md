@@ -12,6 +12,10 @@ _Avoid_: Admin (the role is operator; `/admin` is just the URL), Designer, Maint
 Someone who opens a draft link, enters the draft password, and comments. No account.
 _Avoid_: Client, Customer, Guest, Kundin, User
 
+**Agent**:
+A coding agent (e.g. Claude Code) acting for the operator over the MCP endpoint with an API token: it creates drafts and uploads pages, it does not delete.
+_Avoid_: Bot, Integration, Client
+
 ## Things
 
 **Project**:
@@ -51,3 +55,13 @@ _Avoid_: Responsive, Fluid
 **Fill display**:
 The iframe is as wide as the viewer chrome. The HTML inside may be full-width. A fixed Paper layout is not scaled up to fill.
 _Avoid_: 100%, Responsive, Fluid, Stretch
+
+## Agent access
+
+**API token**:
+The operator-created key an agent sends as `Authorization: Bearer dft_…`. Shown once, then only its name and last use. Revoked one by one.
+_Avoid_: API key, Secret, Password
+
+**Upload link**:
+A one-time URL from `prepare_page_upload` that takes one HTML file for one draft (or one page to replace). Valid 30 minutes, spent by the first successful upload.
+_Avoid_: Ticket (the code's word), Presigned URL

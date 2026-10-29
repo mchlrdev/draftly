@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@untitledui/icons": "^0.0.23",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
@@ -24,7 +25,8 @@
     "pdfjs-dist": "^6.4.299",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

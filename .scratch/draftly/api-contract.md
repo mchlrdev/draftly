@@ -40,6 +40,13 @@ All JSON. Errors are `{ "error": "<German, user-facing message>" }` with the sta
 | PUT | `/api/admin/projects/:project/drafts/:draft/pages` | `{ order: pageId[] }` | 200 `Page[]` |
 | DELETE | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | — | 204, threads deleted (one `thread.deleted` event each) |
 
+| GET | `/api/admin/tokens` | — | 200 `ApiToken[]` (newest first; never the token itself) |
+| POST | `/api/admin/tokens` | `{ name }` | 201 `{ token, apiToken }`. Token shown once. Empty or > 60 chars → 422 |
+| DELETE | `/api/admin/tokens/:tokenId` | — | 204, its upload links die too. Unknown → 404 |
+| GET | `/api/admin/agent/skill` | — | 200 `text/markdown` attachment: the `paper-to-draftly` SKILL.md |
+
+Token routes need the operator cookie; a bearer token gets 401 there.
+
 Draft passwords (ADR 0002 amendment): stored as a scrypt hash (reviewer check) plus an AES-256-GCM copy (`drafts.password_enc`, key = HKDF-SHA256 of the server secret, AAD = draft id) that only the operator can read via `GET …/password`.
 
 Unknown project/draft/page → 404. Slugs match `SLUG_PATTERN`; project slugs not in `RESERVED_SLUGS`.
@@ -66,6 +73,16 @@ Body is plain text, 1–5000 chars after trim (else 422). `authorName` 1–60 ch
 `clientId` is a random id per browser and the credential for editing/deleting own comments. Requests send it raw; responses, snapshots and events never contain it. Each `Comment` carries `authorKey` = lowercase hex SHA-256 of its author's clientId instead; the client hashes its own clientId to recognise its comments.
 
 Rate limits key on the client IP = the **last** `X-Forwarded-For` entry (appended by the one trusted proxy, Traefik), else `local`.
+
+## Agents (ADR 0004)
+
+| Method | Path | Auth | Success |
+|---|---|---|---|
+| POST | `/api/mcp` | `Authorization: Bearer dft_…` (else 401 + `WWW-Authenticate: Bearer`) | MCP Streamable HTTP, stateless, JSON responses. GET/DELETE → 405 |
+| POST | `/api/agent/upload/:ticket` | the ticket | Multipart as the operator upload (`file`, optional `name`, `display`, `designWidth` overriding the link's). New page → 201 `Page`; replace → 200 `Page`. Unknown, expired or spent → 401. A 4xx from validation does not spend the link |
+| GET | `/agent/paper-to-html.mjs` | public | The converter script (static file) |
+
+MCP tools: `list_projects`, `create_project`, `create_draft`, `get_draft` (link, password, pages), `prepare_page_upload` (→ `uploadUrl`, 30 min), `upload_page` (inline HTML, small pages only), `reorder_pages`. Prompt and resource: `paper-to-draftly` (`draftly://skill/paper-to-draftly`). Domain errors come back as tool results with `isError` and the German message. Links use `DRAFTLY_PUBLIC_ORIGIN`, else the request's host.
 
 ## Pages (UI routes)
 

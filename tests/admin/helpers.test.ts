@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { moveBy, moveTo, sameOrder } from "../../lib/admin/reorder"
 import { slugProblem, slugify } from "../../lib/admin/slug"
 import {
+  agentSetups,
   credentialsText,
   deleteDraftText,
   deleteProjectAction,
@@ -208,5 +209,28 @@ describe("designWidthValue", () => {
   it("falls back to the default for a width the Fill field hides", () => {
     expect(designWidthValue("100")).toBe(1440)
     expect(designWidthValue("")).toBe(1440)
+  })
+})
+
+describe("agent setups", () => {
+  const origin = "https://draftly.mchlr.de"
+  const token = "dft_abc"
+  const [claude, cursor, other] = agentSetups(origin, token)
+
+  it("wire Claude Code, Cursor and any other agent to the MCP URL with the token", () => {
+    expect(claude.snippet).toBe(
+      'claude mcp add --scope user --transport http draftly https://draftly.mchlr.de/api/mcp --header "Authorization: Bearer dft_abc"'
+    )
+    expect(JSON.parse(cursor.snippet)).toEqual({
+      mcpServers: {
+        draftly: {
+          url: "https://draftly.mchlr.de/api/mcp",
+          headers: { Authorization: "Bearer dft_abc" },
+        },
+      },
+    })
+    expect(other.snippet).toBe(
+      "URL:    https://draftly.mchlr.de/api/mcp\nHeader: Authorization: Bearer dft_abc"
+    )
   })
 })

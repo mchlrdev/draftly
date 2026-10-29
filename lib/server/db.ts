@@ -63,6 +63,23 @@ CREATE TABLE IF NOT EXISTS comments (
   deleted_at TEXT
 );
 CREATE INDEX IF NOT EXISTS comments_thread ON comments(thread_id, created_at);
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT
+);
+CREATE TABLE IF NOT EXISTS upload_tickets (
+  id TEXT PRIMARY KEY,
+  token_id TEXT NOT NULL REFERENCES api_tokens(id) ON DELETE CASCADE,
+  draft_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+  page_id TEXT REFERENCES pages(id) ON DELETE CASCADE,
+  name TEXT,
+  display TEXT,
+  design_width INTEGER,
+  expires_at TEXT NOT NULL
+);
 `
 
 // Additive changes to tables that may already exist. Each step checks before

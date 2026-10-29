@@ -2,7 +2,13 @@
 // Every call resolves to a result instead of throwing, so forms can show the
 // API's German error message inline.
 
-import type { DisplayMode, Draft, Page, Project } from "@/lib/api-types"
+import type {
+  ApiToken,
+  DisplayMode,
+  Draft,
+  Page,
+  Project,
+} from "@/lib/api-types"
 import { apiFetch, type ApiResult } from "@/lib/api-client"
 
 export type { ApiResult }
@@ -29,6 +35,15 @@ export const operatorApi = {
       method: "PUT",
       json: settings,
     }),
+
+  listTokens: () => call<ApiToken[]>("/api/admin/tokens"),
+  createToken: (name: string) =>
+    call<{ token: string; apiToken: ApiToken }>("/api/admin/tokens", {
+      method: "POST",
+      json: { name },
+    }),
+  revokeToken: (id: string) =>
+    call<void>(`/api/admin/tokens/${enc(id)}`, { method: "DELETE" }),
 
   createProject: (slug: string, title?: string) =>
     call<Project>("/api/admin/projects", {

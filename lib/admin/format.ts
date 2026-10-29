@@ -199,3 +199,71 @@ export function designWidthValue(value: string): number {
     ? Number(value)
     : DEFAULT_DESIGN_WIDTH
 }
+
+export type AgentId = "claude" | "cursor" | "other"
+
+export interface AgentSetup {
+  id: AgentId
+  /** Tab label. */
+  label: string
+  /** What the snippet is, above it. */
+  title: string
+  snippet: string
+  copyLabel: string
+  copiedLabel: string
+  /** Where it goes and how to check it worked. */
+  hint: string
+}
+
+/** How each agent reaches Draftly's MCP server, with the new token filled in. */
+export function agentSetups(origin: string, token: string): AgentSetup[] {
+  const url = `${origin}/api/mcp`
+  return [
+    {
+      id: "claude",
+      label: "Claude Code",
+      title: "Im Terminal ausführen",
+      snippet: `claude mcp add --scope user --transport http draftly ${url} --header "Authorization: Bearer ${token}"`,
+      copyLabel: "Befehl kopieren",
+      copiedLabel: "Befehl kopiert",
+      hint: "Gilt danach in allen Projekten. Prüfen mit „claude mcp list“. Den Skill bringt der Server mit: /mcp__draftly__paper-to-draftly.",
+    },
+    {
+      id: "cursor",
+      label: "Cursor",
+      title: "In ~/.cursor/mcp.json einfügen",
+      snippet: JSON.stringify(
+        {
+          mcpServers: {
+            draftly: { url, headers: { Authorization: `Bearer ${token}` } },
+          },
+        },
+        null,
+        2
+      ),
+      copyLabel: "JSON kopieren",
+      copiedLabel: "JSON kopiert",
+      hint: "Gibt es die Datei schon, nur den Eintrag „draftly“ unter mcpServers ergänzen. Prüfen unter Cursor Settings → MCP. Den Skill als SKILL.md nach ~/.cursor/skills/paper-to-draftly/ legen.",
+    },
+    {
+      id: "other",
+      label: "Andere",
+      title: "Remote-MCP (Streamable HTTP)",
+      snippet: `URL:    ${url}\nHeader: Authorization: Bearer ${token}`,
+      copyLabel: "Kopieren",
+      copiedLabel: "Kopiert",
+      hint: "Für jeden Agenten, der MCP über HTTP mit eigenem Header kann. Kennt er keine MCP-Prompts, den Skill als SKILL.md mitgeben.",
+    },
+  ]
+}
+
+/** "erstellt vor 2 Tagen · zuletzt benutzt gerade eben". */
+export function tokenMeta(
+  token: { createdAt: string; lastUsedAt: string | null },
+  now: Date = new Date()
+): string {
+  const used = token.lastUsedAt
+    ? `zuletzt benutzt ${relativeTime(token.lastUsedAt, now)}`
+    : "noch nie benutzt"
+  return `erstellt ${relativeTime(token.createdAt, now)} · ${used}`
+}
