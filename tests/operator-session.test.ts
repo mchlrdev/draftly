@@ -87,8 +87,17 @@ describe("operator session", () => {
 
   it("marks every response noindex", async () => {
     const res = await client().get("/api/admin/session")
-    expect(res.headers.get("x-robots-tag")).toBe("noindex")
+    expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow")
     const missing = await client().get("/definitely-not-here/nope/deeper")
-    expect(missing.headers.get("x-robots-tag")).toBe("noindex")
+    expect(missing.headers.get("x-robots-tag")).toBe("noindex, nofollow")
+  })
+
+  it("asks every crawler to stay out", async () => {
+    const res = await client().get("/robots.txt")
+    expect(res.status).toBe(200)
+    const text = await res.text()
+    expect(text).toMatch(/User-Agent: \*/i)
+    expect(text).toMatch(/Disallow: \/\s*$/m)
+    expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow")
   })
 })

@@ -15,7 +15,7 @@ describe("public UI routes", () => {
       const { project } = await setupDraft()
       const res = await client().get(`/${project}`)
       expect(res.status).toBe(404)
-      expect(res.headers.get("x-robots-tag")).toBe("noindex")
+      expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow")
     }
   )
 
@@ -33,7 +33,7 @@ describe("public UI routes", () => {
       const { project, draft } = await setupDraft()
       const res = await client().get(`/${project}/${draft}`)
       expect(res.status).toBe(200)
-      expect(res.headers.get("x-robots-tag")).toBe("noindex")
+      expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow")
       expect(await res.text()).not.toContain("Self-contained page.")
     }
   )

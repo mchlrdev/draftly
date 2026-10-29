@@ -8,7 +8,7 @@ export const GET = handle((req) => {
   return json(listTokens())
 })
 
-/** `{ name }` → 201 `{ token, apiToken }`. The plaintext token is shown once. */
+/** `{ name }` → 201 `{ token, apiToken }`. */
 export const POST = handle(async (req) => {
   requireOperator(req)
   return json(createToken(await readJson(req)), 201)

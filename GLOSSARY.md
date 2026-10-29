@@ -59,7 +59,7 @@ _Avoid_: 100%, Responsive, Fluid, Stretch
 ## Agent access
 
 **API token**:
-The operator-created key an agent sends as `Authorization: Bearer dft_…`. Shown once, then only its name and last use. Revoked one by one.
+The operator-created key an agent sends as `Authorization: Bearer dft_…`. The operator can read it again in the "Agenten" dialog. Revoked one by one, best one per app.
 _Avoid_: API key, Secret, Password
 
 **Upload link**:

@@ -2,7 +2,7 @@
 
 **Status:** agreed — the seam between backend and UI. Types live in `lib/api-types.ts`.
 
-All JSON. Errors are `{ "error": "<German, user-facing message>" }` with the status below. Every response carries `X-Robots-Tag: noindex`.
+All JSON. Errors are `{ "error": "<German, user-facing message>" }` with the status below. Every response carries `X-Robots-Tag: noindex, nofollow`; `/robots.txt` disallows everything for every crawler.
 
 ## Config (env)
 
@@ -41,7 +41,8 @@ All JSON. Errors are `{ "error": "<German, user-facing message>" }` with the sta
 | DELETE | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | — | 204, threads deleted (one `thread.deleted` event each) |
 
 | GET | `/api/admin/tokens` | — | 200 `ApiToken[]` (newest first; never the token itself) |
-| POST | `/api/admin/tokens` | `{ name }` | 201 `{ token, apiToken }`. Token shown once. Empty or > 60 chars → 422 |
+| POST | `/api/admin/tokens` | `{ name }` | 201 `{ token, apiToken }`. Empty or > 60 chars → 422 |
+| GET | `/api/admin/tokens/:tokenId` | — | 200 `{ token: string \| null }` — null for tokens created before they were stored (ADR 0004 amendment). Unknown → 404 |
 | DELETE | `/api/admin/tokens/:tokenId` | — | 204, its upload links die too. Unknown → 404 |
 | GET | `/api/admin/agent/skill` | — | 200 `text/markdown` attachment: the `paper-to-draftly` SKILL.md |
 

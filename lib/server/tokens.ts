@@ -3,7 +3,7 @@ import "server-only"
 import { createHash, randomBytes } from "node:crypto"
 import type { ApiToken } from "@/lib/api-types"
 import { db, now } from "./db"
-import { newId } from "./crypto"
+import { decryptPassword, encryptPassword, newId } from "./crypto"
 import { HttpError, notFound, unprocessable } from "./http"
 import { requireDraft, type PageInput } from "./store"
 
@@ -40,7 +40,11 @@ export function listTokens(): ApiToken[] {
   return rows.map(toToken)
 }
 
-/** The plaintext token is returned once and only its hash is kept. */
+// The bearer check uses the hash. The encrypted copy (same AES-GCM scheme as
+// draft passwords, AAD bound to the token id) only lets the operator read it.
+const tokenAad = (id: string) => `api-token:${id}`
+
+/** Returns the plaintext token; stored as hash plus an encrypted copy. */
 export function createToken(input: { name?: unknown }): {
   token: string
   apiToken: ApiToken
@@ -53,15 +57,30 @@ export function createToken(input: { name?: unknown }): {
   const id = newId(9)
   db()
     .prepare(
-      "INSERT INTO api_tokens (id, name, token_hash, created_at) VALUES (?, ?, ?, ?)"
+      "INSERT INTO api_tokens (id, name, token_hash, token_enc, created_at) VALUES (?, ?, ?, ?, ?)"
     )
-    .run(id, name, hashToken(token), now())
+    .run(
+      id,
+      name,
+      hashToken(token),
+      encryptPassword(token, tokenAad(id)),
+      now()
+    )
   const row = db()
     .prepare(
       "SELECT id, name, created_at, last_used_at FROM api_tokens WHERE id = ?"
     )
     .get(id) as unknown as TokenRow
   return { token, apiToken: toToken(row) }
+}
+
+/** The plaintext for the operator; null for tokens made before it was stored. */
+export function readToken(id: string): { token: string | null } {
+  const row = db()
+    .prepare("SELECT token_enc FROM api_tokens WHERE id = ?")
+    .get(id) as { token_enc: string | null } | undefined
+  if (!row) throw notFound("Token nicht gefunden.")
+  return { token: decryptPassword(row.token_enc, tokenAad(id)) }
 }
 
 /** Revoking a token also voids its open upload tickets (cascade). */

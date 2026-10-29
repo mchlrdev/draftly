@@ -215,6 +215,9 @@ export interface AgentSetup {
   hint: string
 }
 
+/** Stands in for the token in the setup until one is selected. */
+export const TOKEN_PLACEHOLDER = "dft_DEIN_TOKEN"
+
 /** How each agent reaches Draftly's MCP server, with the new token filled in. */
 export function agentSetups(origin: string, token: string): AgentSetup[] {
   const url = `${origin}/api/mcp`

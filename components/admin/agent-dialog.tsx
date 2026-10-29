@@ -13,15 +13,18 @@ import { CopyButton } from "@/components/admin/copy-button"
 import { useOrigin } from "@/components/admin/use-origin"
 import { semibold } from "@/components/admin/text"
 import { operatorApi } from "@/lib/admin/api"
-import { agentSetups, tokenMeta, type AgentSetup } from "@/lib/admin/format"
+import { TOKEN_PLACEHOLDER, agentSetups, tokenMeta } from "@/lib/admin/format"
 import type { ApiToken } from "@/lib/api-types"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
 
 // "Agenten" from the sidebar footer (ADR 0004): API tokens for the MCP
-// endpoint. A new token is shown once, together with how each agent (Claude
-// Code, Cursor, any other remote-MCP client) is wired to it; afterwards the
-// list only shows its name and use.
+// endpoint. The setup for Claude Code, Cursor and any other remote-MCP agent
+// is always on screen, filled in with the selected token; the operator can
+// read every token again (ADR 0004 amendment).
+
+/** undefined = not loaded yet, null = made before tokens were stored. */
+type Revealed = Record<string, string | null | undefined>
 
 export function AgentDialog({
   open,
@@ -32,22 +35,40 @@ export function AgentDialog({
 }) {
   const origin = useOrigin()
   const [tokens, setTokens] = useState<ApiToken[] | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [revealed, setRevealed] = useState<Revealed>({})
   const [name, setName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [created, setCreated] = useState<string | null>(null)
 
   useEffect(() => {
     let live = true
     void operatorApi.listTokens().then((res) => {
       if (!live) return
-      if (res.ok) setTokens(res.data)
-      else setError(res.error)
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+      setTokens(res.data)
+      setSelected((s) => s ?? res.data[0]?.id ?? null)
     })
     return () => {
       live = false
     }
   }, [])
+
+  // Read the selected token once; later selections reuse it.
+  useEffect(() => {
+    if (!selected || revealed[selected] !== undefined) return
+    let live = true
+    void operatorApi.readToken(selected).then((res) => {
+      if (live && res.ok)
+        setRevealed((r) => ({ ...r, [selected]: res.data.token }))
+    })
+    return () => {
+      live = false
+    }
+  }, [selected, revealed])
 
   const tooLong = name.trim().length > 60
   const canCreate = !pending && !tooLong && name.trim().length > 0
@@ -61,8 +82,10 @@ export function AgentDialog({
       setError(res.error)
       return
     }
-    setTokens((t) => [res.data.apiToken, ...(t ?? [])])
-    setCreated(res.data.token)
+    const { apiToken, token } = res.data
+    setTokens((t) => [apiToken, ...(t ?? [])])
+    setRevealed((r) => ({ ...r, [apiToken.id]: token }))
+    setSelected(apiToken.id)
     setName("")
   }
 
@@ -72,27 +95,21 @@ export function AgentDialog({
       setError(res.error)
       return
     }
-    setTokens((t) => (t ?? []).filter((x) => x.id !== id))
+    const rest = (tokens ?? []).filter((x) => x.id !== id)
+    setTokens(rest)
+    if (selected === id) setSelected(rest[0]?.id ?? null)
   }
 
-  if (created)
-    return (
-      <CreatedToken
-        open={open}
-        onOpenChange={onOpenChange}
-        token={created}
-        setups={agentSetups(origin, created)}
-        onDone={() => setCreated(null)}
-      />
-    )
+  const current = tokens?.find((t) => t.id === selected) ?? null
+  const plaintext = current ? revealed[current.id] : undefined
 
   return (
     <OperatorDialog
       open={open}
       onOpenChange={onOpenChange}
-      wide
+      list
       title="Agenten"
-      description="Ein Agent wie Claude Code wandelt Paper-Frames selbst in Seiten um und lädt sie hoch. Jedes Token ist ein eigener Schlüssel und lässt sich einzeln widerrufen."
+      description="Ein Agent wie Claude Code oder Cursor wandelt Paper-Frames selbst in Seiten um und lädt sie hoch. Am besten ein Token pro App: jedes lässt sich einzeln widerrufen."
       onSubmit={create}
       actions={
         <>
@@ -118,7 +135,7 @@ export function AgentDialog({
         <InputField
           index={0}
           label="Name des neuen Tokens"
-          placeholder="z. B. Claude Code auf dem MacBook"
+          placeholder="z. B. Cursor auf dem MacBook"
           value={name}
           autoFocus
           onChange={(v) => {
@@ -132,66 +149,163 @@ export function AgentDialog({
         />
       </InputGroup>
 
-      <FieldBlock
-        label="Aktive Tokens"
-        hint={
-          <>
-            MCP-URL <Code>{origin}/api/mcp</Code>. Nach dem Erstellen zeigt
-            Draftly die Einrichtung für Claude Code, Cursor und andere Agenten.
-            Für Agenten ohne MCP-Prompts gibt es den Skill auch als{" "}
-            <a
-              href="/api/admin/agent/skill"
-              download
-              className="text-foreground underline underline-offset-2"
-            >
-              SKILL.md
-            </a>
-            .
-          </>
-        }
-      >
+      <FieldBlock label="Tokens">
         {tokens === null ? (
-          <p
-            className={cn(
-              typeClass("body", "compact"),
-              "text-muted-foreground"
-            )}
-          >
-            Lädt …
-          </p>
+          <Muted>Lädt …</Muted>
         ) : tokens.length === 0 ? (
-          <p
-            className={cn(
-              typeClass("body", "compact"),
-              "text-muted-foreground"
-            )}
-          >
-            Noch keine Tokens.
-          </p>
+          <Muted>Noch keine Tokens. Erstelle oben eines.</Muted>
         ) : (
           <ul className="flex flex-col divide-y divide-border rounded-xl shadow-[inset_0_0_0_1px_var(--border)]">
             {tokens.map((t) => (
-              <TokenRow key={t.id} token={t} onRevoke={() => revoke(t.id)} />
+              <TokenRow
+                key={t.id}
+                token={t}
+                selected={t.id === selected}
+                onSelect={() => setSelected(t.id)}
+                onRevoke={() => revoke(t.id)}
+              />
             ))}
           </ul>
         )}
       </FieldBlock>
+
+      <SetupGuide
+        origin={origin}
+        tokenName={current?.name ?? null}
+        token={plaintext}
+      />
     </OperatorDialog>
   )
 }
 
-/** Revoking asks once more on the same button: a revoked agent stops at its next call. */
+/** The setup per agent, with the selected token filled in (or a placeholder). */
+function SetupGuide({
+  origin,
+  tokenName,
+  token,
+}: {
+  origin: string
+  tokenName: string | null
+  token: string | null | undefined
+}) {
+  const [tab, setTab] = useState(0)
+  const setups = agentSetups(origin, token || TOKEN_PLACEHOLDER)
+  const label = tokenName ? `Einrichtung mit „${tokenName}“` : "Einrichtung"
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            typeClass("caption", "compact"),
+            "min-w-0 truncate text-muted-foreground"
+          )}
+        >
+          {label}
+        </span>
+        <TabsSubtle
+          size="compact"
+          selectedIndex={tab}
+          onSelect={setTab}
+          idPrefix="agent-setup"
+          aria-label="Agent"
+        >
+          {setups.map((s, i) => (
+            <TabsSubtleItem key={s.id} index={i} label={s.label} />
+          ))}
+        </TabsSubtle>
+      </div>
+      {setups.map((s, i) => (
+        <TabsSubtlePanel
+          key={s.id}
+          index={i}
+          selectedIndex={tab}
+          idPrefix="agent-setup"
+          className="flex flex-col gap-1.5"
+        >
+          <div className="flex min-h-7 items-center justify-between gap-2">
+            <span
+              className={cn(typeClass("body", "compact"), "text-foreground")}
+              style={semibold}
+            >
+              {s.title}
+            </span>
+            {token ? (
+              <CopyButton
+                size="compact"
+                text={s.snippet}
+                label={s.copyLabel}
+                copiedLabel={s.copiedLabel}
+              />
+            ) : null}
+          </div>
+          <pre
+            className={cn(
+              typeClass("caption", "compact"),
+              "rounded-xl bg-muted px-3.5 py-3 font-mono break-all whitespace-pre-wrap text-foreground select-all"
+            )}
+            data-testid={`setup-${s.id}`}
+          >
+            {s.snippet}
+          </pre>
+          <Muted>{s.hint}</Muted>
+        </TabsSubtlePanel>
+      ))}
+      {token === null ? (
+        <p
+          role="alert"
+          className={cn(typeClass("caption", "compact"), "text-destructive")}
+        >
+          Dieses Token wurde erstellt, bevor Draftly Tokens gespeichert hat, und
+          lässt sich nicht mehr anzeigen. Widerrufe es und erstelle ein neues.
+        </p>
+      ) : !tokenName ? (
+        <Muted>
+          Mit einem Token steht es hier schon eingesetzt. MCP-URL{" "}
+          <Code>{origin}/api/mcp</Code>.
+        </Muted>
+      ) : null}
+      <Muted>
+        Für Agenten ohne MCP-Prompts gibt es den Skill auch als{" "}
+        <a
+          href="/api/admin/agent/skill"
+          download
+          className="text-foreground underline underline-offset-2"
+        >
+          SKILL.md
+        </a>
+        .
+      </Muted>
+    </div>
+  )
+}
+
+/** Clicking the row shows its setup; revoking asks once more on the same button. */
 function TokenRow({
   token,
+  selected,
+  onSelect,
   onRevoke,
 }: {
   token: ApiToken
+  selected: boolean
+  onSelect: () => void
   onRevoke: () => void
 }) {
   const [confirm, setConfirm] = useState(false)
   return (
-    <li className="flex items-center justify-between gap-3 py-2.5 pr-2 pl-3.5">
-      <div className="flex min-w-0 flex-col">
+    <li
+      className={cn(
+        "flex items-center justify-between gap-3 py-1.5 pr-2 pl-1.5 first:rounded-t-xl last:rounded-b-xl",
+        selected && "bg-muted"
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className="flex min-w-0 flex-1 flex-col rounded-lg px-2 py-1 text-left outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
+      >
         <span
           className={cn(
             typeClass("body", "compact"),
@@ -209,7 +323,7 @@ function TokenRow({
         >
           {tokenMeta(token)}
         </span>
-      </div>
+      </button>
       <Button
         type="button"
         size="compact"
@@ -227,96 +341,11 @@ function TokenRow({
   )
 }
 
-/** The token, once: a tab per agent with its ready-to-paste setup. */
-function CreatedToken({
-  open,
-  onOpenChange,
-  token,
-  setups,
-  onDone,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  token: string
-  setups: AgentSetup[]
-  onDone: () => void
-}) {
-  const [tab, setTab] = useState(0)
-  const setup = setups[tab]
+function Muted({ children }: { children: ReactNode }) {
   return (
-    <OperatorDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      wide
-      title="Token erstellt"
-      description="Wird nur jetzt angezeigt und gilt, bis du es widerrufst. Richte damit deinen Agenten ein. Für mehrere Apps am besten je ein eigenes Token."
-      onSubmit={onDone}
-      actions={
-        <>
-          <Button type="submit" variant="secondary">
-            Fertig
-          </Button>
-          <CopyButton
-            key={setup.id}
-            variant="primary"
-            text={setup.snippet}
-            label={setup.copyLabel}
-            copiedLabel={setup.copiedLabel}
-          />
-        </>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <TabsSubtle
-          size="compact"
-          selectedIndex={tab}
-          onSelect={setTab}
-          idPrefix="agent-setup"
-          aria-label="Agent"
-        >
-          {setups.map((s, i) => (
-            <TabsSubtleItem key={s.id} index={i} label={s.label} />
-          ))}
-        </TabsSubtle>
-        {setups.map((s, i) => (
-          <TabsSubtlePanel
-            key={s.id}
-            index={i}
-            selectedIndex={tab}
-            idPrefix="agent-setup"
-          >
-            <FieldBlock label={s.title} hint={s.hint}>
-              <pre
-                className={cn(
-                  typeClass("caption", "compact"),
-                  "rounded-xl bg-muted px-3.5 py-3 font-mono break-all whitespace-pre-wrap text-foreground select-all"
-                )}
-                data-testid={`setup-${s.id}`}
-              >
-                {s.snippet}
-              </pre>
-            </FieldBlock>
-          </TabsSubtlePanel>
-        ))}
-      </div>
-      <FieldBlock label="Token">
-        <div className="flex h-11 items-center justify-between gap-2 rounded-xl pr-2 pl-3.5 shadow-[inset_0_0_0_1px_var(--border)]">
-          <span
-            className={cn(
-              typeClass("caption", "compact"),
-              "min-w-0 truncate font-mono text-foreground select-all"
-            )}
-          >
-            {token}
-          </span>
-          <CopyButton
-            text={token}
-            aria-label="Token kopieren"
-            className="shrink-0"
-          />
-        </div>
-      </FieldBlock>
-    </OperatorDialog>
+    <p className={cn(typeClass("caption", "compact"), "text-muted-foreground")}>
+      {children}
+    </p>
   )
 }
 

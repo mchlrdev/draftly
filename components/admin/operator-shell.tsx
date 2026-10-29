@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
@@ -13,6 +13,7 @@ import {
   SidebarInset,
   SidebarMenu,
   SidebarMenuAction,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -43,6 +44,7 @@ import { useIcons } from "@/lib/icon-context"
 import { operatorApi } from "@/lib/admin/api"
 import { SIDEBAR_MENU_POPUP } from "@/lib/sidebar-menu-grid"
 import { exitFallbackMs, spring } from "@/lib/springs"
+import { openCommentsLabel } from "@/lib/admin/format"
 import type { DraftSummary, Project } from "@/lib/api-types"
 import { typeClass } from "@/lib/type-scale"
 import { cn } from "@/lib/utils"
@@ -51,7 +53,9 @@ import { cn } from "@/lib/utils"
 // every project as a collapsible row holding its drafts and a "Neuer Draft"
 // row. Each project and draft row carries a ⋯ menu (Bearbeiten, Löschen).
 // The footer shows the operator's name and opens settings, agent access and
-// sign-out.
+// sign-out. Rows carry the number of open threads, so new comments show
+// without opening a draft; the data refreshes every minute and on return to
+// the tab.
 // Data comes from the server layout; mutations end in router.refresh().
 
 type Dialog =
@@ -94,6 +98,20 @@ export function OperatorShell({
   // current page.
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
   const isOpen = (slug: string) => toggled[slug] ?? slug === params.project
+
+  // Reviewers comment while the operator is elsewhere: refetch the layout's
+  // data (counts included) on an interval and when the tab comes back.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") router.refresh()
+    }
+    const timer = window.setInterval(refresh, REFRESH_MS)
+    document.addEventListener("visibilitychange", refresh)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", refresh)
+    }
+  }, [router])
 
   const logout = async () => {
     await operatorApi.logout()
@@ -152,6 +170,14 @@ export function OperatorShell({
                       >
                         {title}
                       </SidebarMenuButton>
+                      {!open && (
+                        <OpenCount
+                          n={project.drafts.reduce(
+                            (sum, d) => sum + d.openThreadCount,
+                            0
+                          )}
+                        />
+                      )}
                       <RowMenu
                         label={`Aktionen für ${title}`}
                         onEdit={() => show({ kind: "edit-project", project })}
@@ -175,6 +201,7 @@ export function OperatorShell({
                             >
                               {draft.slug}
                             </SidebarMenuSubButton>
+                            <OpenCount n={draft.openThreadCount} />
                             <RowMenu
                               label={`Aktionen für ${draft.slug}`}
                               onEdit={() =>
@@ -247,6 +274,22 @@ export function OperatorShell({
         params={params}
       />
     </SidebarProvider>
+  )
+}
+
+const REFRESH_MS = 60_000
+
+/** Open threads on the row's trailing badge axis; nothing when there are none. */
+function OpenCount({ n }: { n: number }) {
+  if (n <= 0) return null
+  return (
+    <SidebarMenuBadge
+      title={openCommentsLabel(n)}
+      className="rounded-full bg-primary text-primary-foreground"
+    >
+      {n > 99 ? "99+" : n}
+      <span className="sr-only"> {openCommentsLabel(n)}</span>
+    </SidebarMenuBadge>
   )
 }
 

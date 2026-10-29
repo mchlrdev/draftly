@@ -50,7 +50,7 @@ const postFile = (url: string, html: string) =>
   fetch(url, { method: "POST", body: pageForm({ html }) })
 
 describe("API tokens", () => {
-  it("are shown once, listed by name and revocable by the operator only", async () => {
+  it("are listed by name, readable and revocable by the operator only", async () => {
     const { op, token, apiToken } = await newToken("Laptop")
     expect(token).toMatch(/^dft_[\w-]{40,}$/)
     expect(apiToken).toMatchObject({ name: "Laptop", lastUsedAt: null })
@@ -63,12 +63,23 @@ describe("API tokens", () => {
     })
     expect(JSON.stringify(list)).not.toContain(token)
 
+    // The operator can read it again, e.g. to set up a second agent.
+    const read = await op.get(`/api/admin/tokens/${apiToken.id}`)
+    expect(read.status).toBe(200)
+    expect(await read.json()).toEqual({ token })
+    expect((await op.get("/api/admin/tokens/nope")).status).toBe(404)
+
     // A bearer token is not an operator session.
-    const asToken = await fetch(`${baseUrl()}/api/admin/tokens`, {
-      headers: { authorization: `Bearer ${token}` },
-    })
-    expect(asToken.status).toBe(401)
-    expect((await client().get("/api/admin/tokens")).status).toBe(401)
+    for (const path of [
+      "/api/admin/tokens",
+      `/api/admin/tokens/${apiToken.id}`,
+    ]) {
+      const asToken = await fetch(`${baseUrl()}${path}`, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+      expect(asToken.status).toBe(401)
+      expect((await client().get(path)).status).toBe(401)
+    }
 
     expect((await op.del(`/api/admin/tokens/${apiToken.id}`)).status).toBe(204)
     expect((await op.del(`/api/admin/tokens/${apiToken.id}`)).status).toBe(404)

@@ -42,6 +42,9 @@ export const operatorApi = {
       method: "POST",
       json: { name },
     }),
+  /** null for tokens made before they were stored. */
+  readToken: (id: string) =>
+    call<{ token: string | null }>(`/api/admin/tokens/${enc(id)}`),
   revokeToken: (id: string) =>
     call<void>(`/api/admin/tokens/${enc(id)}`, { method: "DELETE" }),
 

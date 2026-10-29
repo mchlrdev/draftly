@@ -91,8 +91,8 @@ export const DEFAULT_LETTERBOX = "#D8D2C8"
 export const RESERVED_SLUGS = ["admin", "api", "_next"] as const
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/
 
-/** An agent's key for the MCP endpoint (ADR 0004). The token itself is shown
- *  once, on creation; afterwards only its name and use are listed. */
+/** An agent's key for the MCP endpoint (ADR 0004). The list carries name and
+ *  use; the operator reads the token itself through GET /api/admin/tokens/:id. */
 export interface ApiToken {
   id: string
   name: string
