@@ -17,7 +17,11 @@ import {
   type Thread,
   type ThreadStatus,
 } from "@/lib/api-types"
-import { findExternalUrls } from "@/lib/admin/format"
+import {
+  PAPER_ID_PATTERN,
+  findExternalUrls,
+  paperFromHtml,
+} from "@/lib/admin/format"
 import { db, now, tx } from "./db"
 import {
   decryptPassword,
@@ -61,6 +65,8 @@ interface PageRow {
   name: string
   display: DisplayMode
   design_width: number
+  paper_file_id: string | null
+  paper_node_id: string | null
   sort: number
   created_at: string
   updated_at: string
@@ -92,6 +98,8 @@ const toPage = (r: PageRow): Page => ({
   name: r.name,
   display: r.display,
   designWidth: r.design_width,
+  paperFileId: r.paper_file_id,
+  paperNodeId: r.paper_node_id,
   sort: r.sort,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -160,6 +168,18 @@ function designWidth(v: unknown): number {
       "Bitte eine ganze Zahl zwischen 200 und 10000 px angeben."
     )
   return n
+}
+
+/** A Paper file or node id; "" or null clears it. */
+function paperId(v: unknown): string | null {
+  if (v === null || v === "") return null
+  const s = str(v).trim()
+  if (!s) return null
+  if (!PAPER_ID_PATTERN.test(s))
+    throw unprocessable(
+      "Ungültige Paper-ID. Erwartet z. B. 01M587YHKH90P6BJ6TTPFZCXFW oder 1Y7-0."
+    )
+  return s
 }
 
 function pageName(v: unknown): string {
@@ -372,7 +392,7 @@ export function requireDraft(project: string, draft: string): DraftRow {
 function pageRows(draftId: string): PageRow[] {
   return db()
     .prepare(
-      "SELECT id, draft_id, name, display, design_width, sort, created_at, updated_at FROM pages WHERE draft_id = ? ORDER BY sort, created_at"
+      "SELECT id, draft_id, name, display, design_width, paper_file_id, paper_node_id, sort, created_at, updated_at FROM pages WHERE draft_id = ? ORDER BY sort, created_at"
     )
     .all(draftId) as unknown as PageRow[]
 }
@@ -503,7 +523,7 @@ const DUMMY_HASH = () => (dummy ??= hashPassword(generatePassword()))
 function requirePage(draftId: string, pageId: string): PageRow {
   const row = db()
     .prepare(
-      "SELECT id, draft_id, name, display, design_width, sort, created_at, updated_at FROM pages WHERE id = ? AND draft_id = ?"
+      "SELECT id, draft_id, name, display, design_width, paper_file_id, paper_node_id, sort, created_at, updated_at FROM pages WHERE id = ? AND draft_id = ?"
     )
     .get(pageId, draftId) as PageRow | undefined
   if (!row) throw notFound("Seite nicht gefunden.")
@@ -516,6 +536,9 @@ export interface PageInput {
   name?: unknown
   display?: unknown
   designWidth?: unknown
+  /** Unset → taken from the HTML's paper meta tags; "" → none. */
+  paperFileId?: unknown
+  paperNodeId?: unknown
 }
 
 export function createPage(
@@ -538,6 +561,9 @@ export function createPage(
     input.designWidth === undefined || input.designWidth === ""
       ? DEFAULT_DESIGN_WIDTH
       : designWidth(input.designWidth)
+  const meta = paperFromHtml(html)
+  const paperFile = paperId(input.paperFileId ?? meta.paperFileId ?? null)
+  const paperNode = paperId(input.paperNodeId ?? meta.paperNodeId ?? null)
   const id = newId(9)
   const t = now()
   tx(() => {
@@ -550,9 +576,21 @@ export function createPage(
     }
     db()
       .prepare(
-        "INSERT INTO pages (id, draft_id, name, display, design_width, sort, html, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO pages (id, draft_id, name, display, design_width, paper_file_id, paper_node_id, sort, html, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .run(id, d.id, name, mode, width, Number(m) + 1, html, t, t)
+      .run(
+        id,
+        d.id,
+        name,
+        mode,
+        width,
+        paperFile,
+        paperNode,
+        Number(m) + 1,
+        html,
+        t,
+        t
+      )
   })
   return toPage(requirePage(d.id, id))
 }
@@ -572,7 +610,11 @@ export function replacePage(
   db()
     .prepare("UPDATE pages SET html = ?, updated_at = ? WHERE id = ?")
     .run(html, now(), pageId)
-  return updatePage(project, draft, pageId, input)
+  // Paper ids in the new HTML update the page; none keep the old ones.
+  return updatePage(project, draft, pageId, {
+    ...paperFromHtml(html),
+    ...defined(input),
+  })
 }
 
 export function updatePage(
@@ -584,7 +626,7 @@ export function updatePage(
   const d = requireDraft(project, draft)
   requirePage(d.id, pageId)
   const sets: string[] = []
-  const values: (string | number)[] = []
+  const values: (string | number | null)[] = []
   if (input.name !== undefined && input.name !== "") {
     sets.push("name = ?")
     values.push(pageName(input.name))
@@ -597,6 +639,15 @@ export function updatePage(
     sets.push("design_width = ?")
     values.push(designWidth(input.designWidth))
   }
+  // Unlike the fields above, "" clears a Paper id.
+  for (const [key, col] of [
+    ["paperFileId", "paper_file_id"],
+    ["paperNodeId", "paper_node_id"],
+  ] as const) {
+    if (input[key] === undefined) continue
+    sets.push(`${col} = ?`)
+    values.push(paperId(input[key]))
+  }
   if (sets.length) {
     sets.push("updated_at = ?")
     values.push(now())
@@ -605,6 +656,13 @@ export function updatePage(
       .run(...values, pageId)
   }
   return toPage(requirePage(d.id, pageId))
+}
+
+/** The input without its undefined keys, so a spread does not mask defaults. */
+function defined<T extends object>(input: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, v]) => v !== undefined)
+  ) as Partial<T>
 }
 
 export function reorderPages(

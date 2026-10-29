@@ -20,6 +20,8 @@ export const POST = handle<Params<"ticket">>(async (req, ctx) => {
       name: set(form.name) ?? defaults.name,
       display: set(form.display) ?? defaults.display,
       designWidth: set(form.designWidth) ?? defaults.designWidth,
+      paperFileId: set(form.paperFileId) ?? defaults.paperFileId,
+      paperNodeId: set(form.paperNodeId) ?? defaults.paperNodeId,
     }
     return pageId
       ? json(replacePage(project, draft, pageId, input))

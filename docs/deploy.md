@@ -2,7 +2,7 @@
 
 ## Docker
 
-Draftly ships as one image (Node 26, Next.js standalone output) with SQLite on a named volume.
+Draftly ships as one image (Node 26, Next.js standalone output) with SQLite on a named volume. The image also carries a headless Chromium shell for agent screenshots (ADR 0004); it starts only when an agent asks for one and exits after a minute idle.
 
 Local run:
 

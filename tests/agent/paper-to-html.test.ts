@@ -14,7 +14,7 @@ const {
 } = p2h as {
   buildDocument: (
     jsx: string,
-    o?: { tokensCss?: string; title?: string }
+    o?: { tokensCss?: string; title?: string; paperNodeId?: string }
   ) => {
     html: string
     styles: Record<string, unknown>[]
@@ -80,6 +80,15 @@ describe("paper-to-html", () => {
     expect(html).toContain('<linearGradient gradientUnits="userSpaceOnUse" />')
     expect(html).toContain('<div style="font-weight: 700"></div>')
     expect(html).not.toContain("note")
+  })
+
+  it("links the page to its Paper file and artboard with meta tags", () => {
+    const { html } = buildDocument(PAPER_OUTPUT, { paperNodeId: "1Y7-0" })
+    expect(html).toContain('<meta name="paper:file" content="01M5">')
+    expect(html).toContain('<meta name="paper:node" content="1Y7-0">')
+    expect(
+      buildDocument(PAPER_OUTPUT, { paperNodeId: "a b" }).html
+    ).not.toContain("paper:node")
   })
 
   it("finds the URLs Draftly would reject, W3C namespaces aside", () => {

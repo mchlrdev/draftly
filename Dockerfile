@@ -26,7 +26,15 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
-    DRAFTLY_DATA_DIR=/data
+    DRAFTLY_DATA_DIR=/data \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Headless Chromium shell plus its system libraries, for agent screenshots
+# (lib/server/screenshot.ts). Installed by the playwright-core version the
+# app runs with, so browser and library always match.
+COPY --from=deps /app/node_modules/playwright-core /tmp/playwright-core
+RUN node /tmp/playwright-core/cli.js install --with-deps chromium-headless-shell \
+ && rm -rf /tmp/playwright-core /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 1001 draftly \
  && useradd --system --uid 1001 --gid draftly --home-dir /app --shell /usr/sbin/nologin draftly \
@@ -35,6 +43,8 @@ RUN groupadd --system --gid 1001 draftly \
 
 # Standalone bundle: server.js plus traced node_modules.
 COPY --from=build /app/.next/standalone ./
+# playwright-core loads parts lazily that file tracing can miss: ship it whole.
+COPY --from=deps /app/node_modules/playwright-core ./node_modules/playwright-core
 # Static assets and public files are not part of the standalone bundle.
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public

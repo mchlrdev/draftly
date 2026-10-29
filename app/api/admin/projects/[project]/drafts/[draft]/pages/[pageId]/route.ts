@@ -21,9 +21,16 @@ export const PUT = handle<Ctx>(async (req, ctx) => {
 export const PATCH = handle<Ctx>(async (req, ctx) => {
   requireOperator(req)
   const { project, draft, pageId } = await ctx.params
-  const { name, display, designWidth } = await readJson(req)
+  const { name, display, designWidth, paperFileId, paperNodeId } =
+    await readJson(req)
   return json(
-    updatePage(project, draft, pageId, { name, display, designWidth })
+    updatePage(project, draft, pageId, {
+      name,
+      display,
+      designWidth,
+      paperFileId,
+      paperNodeId,
+    })
   )
 })
 

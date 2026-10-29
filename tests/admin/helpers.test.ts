@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 import { moveBy, moveTo, sameOrder } from "../../lib/admin/reorder"
 import { slugProblem, slugify } from "../../lib/admin/slug"
 import {
+  paperFileIdFromInput,
+  paperFromHtml,
   agentSetups,
   credentialsText,
   deleteDraftText,
@@ -232,5 +234,26 @@ describe("agent setups", () => {
     expect(other.snippet).toBe(
       "URL:    https://draftly.mchlr.de/api/mcp\nHeader: Authorization: Bearer dft_abc"
     )
+  })
+})
+
+describe("Paper link", () => {
+  it("reads the converter's meta tags in any attribute order, skipping bad ids", () => {
+    expect(
+      paperFromHtml(
+        '<head><meta content="1Y7-0" name="paper:node"><META NAME="paper:file" CONTENT="01M5"></head>'
+      )
+    ).toEqual({ paperFileId: "01M5", paperNodeId: "1Y7-0" })
+    expect(paperFromHtml('<meta name="paper:node" content="a b">')).toEqual({})
+    expect(paperFromHtml("<p>no meta</p>")).toEqual({})
+  })
+
+  it("takes a file id from a pasted Paper link", () => {
+    expect(
+      paperFileIdFromInput(
+        "https://app.paper.design/file/01M587YHKH90P6BJ6TTPFZCXFW/p-3-0"
+      )
+    ).toBe("01M587YHKH90P6BJ6TTPFZCXFW")
+    expect(paperFileIdFromInput(" 01M5 ")).toBe("01M5")
   })
 })

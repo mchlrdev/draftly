@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS upload_tickets (
 
 // Additive changes to tables that may already exist. Each step checks before
 // it alters, so it is safe on a fresh database and on every restart.
-const MIGRATIONS_VERSION = 2
+const MIGRATIONS_VERSION = 3
 
 function hasColumn(conn: DatabaseSync, table: string, column: string): boolean {
   const cols = conn.prepare(`PRAGMA table_info(${table})`).all() as unknown as {
@@ -102,6 +102,12 @@ function migrate(conn: DatabaseSync): void {
   // operator can read it again. NULL for tokens made before.
   if (!hasColumn(conn, "api_tokens", "token_enc"))
     conn.exec("ALTER TABLE api_tokens ADD COLUMN token_enc TEXT")
+  // Where a page came from in Paper (file + artboard node), so an agent can
+  // go from a pin back to the design. NULL for pages without it.
+  for (const table of ["pages", "upload_tickets"])
+    for (const col of ["paper_file_id", "paper_node_id"])
+      if (!hasColumn(conn, table, col))
+        conn.exec(`ALTER TABLE ${table} ADD COLUMN ${col} TEXT`)
 }
 
 const g = globalThis as unknown as {

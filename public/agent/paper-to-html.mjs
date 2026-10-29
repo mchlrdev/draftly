@@ -8,7 +8,8 @@
 // Optionally uploads it to a one-time Draftly upload link.
 //
 //   node paper-to-html.mjs frame.jsx --tokens tokens.css --out page.html \
-//     [--title "Home"] [--upload <url>] [--font "Family:700italic=./f.woff2"] \
+//     [--title "Home"] [--paper-node 1Y7-0] [--upload <url>] \
+//     [--font "Family:700italic=./f.woff2"] \
 //     [--max-image 2400] [--jpeg-quality 82] [--subsets latin,latin-ext] [--no-fonts]
 //
 // Node 18+, no dependencies. On macOS, large opaque images are shrunk with sips.
@@ -598,14 +599,28 @@ async function inlineImages(html, opts, warn) {
 
 // ---------- page ----------
 
+/** The Paper file id from the header `get_jsx` prints before the JSX. */
+export function paperFileIdFromHeader(source) {
+  const head = source.slice(0, Math.max(0, source.search(/<[A-Za-z]/)))
+  return /"file"\s*:\s*\{[^}]*"id"\s*:\s*"([\w-]+)"/.exec(head)?.[1] ?? null
+}
+
+const PAPER_ID = /^[A-Za-z0-9_:-]{1,64}$/
+
 /** HTML document around the rendered frame. Pure; no network. */
-export function buildDocument(jsxSource, { tokensCss = "", title = "Page" } = {}) {
+export function buildDocument(jsxSource, { tokensCss = "", title = "Page", paperFileId, paperNodeId } = {}) {
   const tree = parseJsx(jsxSource)
   const styles = []
   const body = renderNode(tree, { visitStyle: (s) => styles.push(s) })
   const rootStyle = tree.attrs.find(([n]) => n === "style")?.[1]
   const width = Number.parseInt(String(rootStyle?.width ?? ""), 10)
   const css = tokensToCss(tokensCss)
+  // Draftly reads these to link the page back to its Paper artboard.
+  const fileId = paperFileId ?? paperFileIdFromHeader(jsxSource)
+  const paperMeta = [
+    fileId && PAPER_ID.test(fileId) ? `<meta name="paper:file" content="${fileId}">` : null,
+    paperNodeId && PAPER_ID.test(paperNodeId) ? `<meta name="paper:node" content="${paperNodeId}">` : null,
+  ].filter(Boolean)
   const html = [
     "<!doctype html>",
     '<html lang="de">',
@@ -613,6 +628,7 @@ export function buildDocument(jsxSource, { tokensCss = "", title = "Page" } = {}
     '<meta charset="utf-8">',
     `<meta name="viewport" content="width=${Number.isFinite(width) ? width : "device-width"}">`,
     `<title>${escText(title)}</title>`,
+    ...paperMeta,
     "<style>",
     css,
     "html, body { margin: 0; padding: 0; }",
@@ -631,6 +647,8 @@ export async function convert(jsxSource, options = {}) {
   const {
     tokensCss = "",
     title,
+    paperFileId,
+    paperNodeId,
     fonts: fontSpecs = [],
     embedFonts = true,
     subsets = ["latin", "latin-ext"],
@@ -638,7 +656,7 @@ export async function convert(jsxSource, options = {}) {
     jpegQuality = 82,
     warn = (m) => console.warn(`warn: ${m}`),
   } = options
-  const doc = buildDocument(jsxSource, { tokensCss, title })
+  const doc = buildDocument(jsxSource, { tokensCss, title, paperFileId, paperNodeId })
   let html = await inlineImages(doc.html, { maxDim, jpegQuality }, warn)
 
   const faces = []
@@ -693,13 +711,15 @@ async function main() {
   const args = parseArgs(process.argv.slice(2))
   const [input] = args._
   if (!input) {
-    console.error("Usage: node paper-to-html.mjs frame.jsx [--tokens tokens.css] [--out page.html] [--title T] [--upload URL] [--name N] [--display fixed|fill] [--font Family:700italic=path] [--max-image 2400] [--jpeg-quality 82] [--subsets latin,latin-ext] [--no-fonts]")
+    console.error("Usage: node paper-to-html.mjs frame.jsx [--tokens tokens.css] [--out page.html] [--title T] [--paper-node ID] [--paper-file ID] [--upload URL] [--name N] [--display fixed|fill] [--font Family:700italic=path] [--max-image 2400] [--jpeg-quality 82] [--subsets latin,latin-ext] [--no-fonts]")
     process.exit(2)
   }
   const title = args.title ?? args.name ?? basename(input).replace(/\.[^.]+$/, "")
   const result = await convert(readFileSync(input, "utf8"), {
     tokensCss: args.tokens ? readFileSync(args.tokens, "utf8") : "",
     title,
+    paperFileId: args.paperFile,
+    paperNodeId: args.paperNode,
     fonts: args.font,
     embedFonts: !args.noFonts,
     subsets: args.subsets ? args.subsets.split(",").filter(Boolean) : undefined,

@@ -141,6 +141,40 @@ export function findExternalUrls(html: string): string[] {
   return urls
 }
 
+export const PAPER_ID_PATTERN = /^[A-Za-z0-9_:-]{1,64}$/
+
+/** `<meta name="paper:file" content="…">` and `paper:node`, as the agent
+ *  converter writes them. Invalid ids are skipped. */
+export function paperFromHtml(html: string): {
+  paperFileId?: string
+  paperNodeId?: string
+} {
+  const head = html.slice(0, 64 * 1024)
+  const read = (key: string) => {
+    for (const m of head.matchAll(/<meta\b[^>]*>/gi)) {
+      const tag = m[0]
+      const name = /\bname\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1]
+      if (name?.toLowerCase() !== key) continue
+      const content = /\bcontent\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1]
+      if (content && PAPER_ID_PATTERN.test(content.trim()))
+        return content.trim()
+    }
+    return undefined
+  }
+  const out: { paperFileId?: string; paperNodeId?: string } = {}
+  const file = read("paper:file")
+  const node = read("paper:node")
+  if (file) out.paperFileId = file
+  if (node) out.paperNodeId = node
+  return out
+}
+
+/** A Paper file id from a pasted Paper link (…/file/<id>/…), else the input. */
+export function paperFileIdFromInput(value: string): string {
+  const v = value.trim()
+  return /\/file\/([A-Za-z0-9_-]+)/.exec(v)?.[1] ?? v
+}
+
 /** Shortens a long URL for the message: "https://app.paper.design/…/hero.png". */
 export function shortUrl(url: string): string {
   const m = /^(https?:\/\/[^/]+)(\/.*)?$/i.exec(url)

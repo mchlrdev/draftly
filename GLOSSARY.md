@@ -13,7 +13,7 @@ Someone who opens a draft link, enters the draft password, and comments. No acco
 _Avoid_: Client, Customer, Guest, Kundin, User
 
 **Agent**:
-A coding agent (e.g. Claude Code) acting for the operator over the MCP endpoint with an API token: it creates drafts and uploads pages, it does not delete.
+A coding agent (e.g. Claude Code) acting for the operator over the MCP endpoint with an API token: it creates drafts, uploads pages and works through comments (its comments read "<operator> (Agent)"). It does not delete.
 _Avoid_: Bot, Integration, Client
 
 ## Things
@@ -65,3 +65,7 @@ _Avoid_: API key, Secret, Password
 **Upload link**:
 A one-time URL from `prepare_page_upload` that takes one HTML file for one draft (or one page to replace). Valid 30 minutes, spent by the first successful upload.
 _Avoid_: Ticket (the code's word), Presigned URL
+
+**Paper link**:
+The Paper file id and artboard node id a page was made from, optional. Lets an agent go from a pin to the artboard element.
+_Avoid_: Source, Origin

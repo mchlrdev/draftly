@@ -135,6 +135,9 @@ export interface PageForm {
   name: string
   display: DisplayMode
   designWidth: number
+  /** Sent only when set; "" clears. */
+  paperFileId?: string
+  paperNodeId?: string
 }
 
 function pageFormData(form: PageForm & { file: File }): FormData {
@@ -143,5 +146,7 @@ function pageFormData(form: PageForm & { file: File }): FormData {
   data.set("name", form.name)
   data.set("display", form.display)
   data.set("designWidth", String(form.designWidth))
+  if (form.paperFileId !== undefined) data.set("paperFileId", form.paperFileId)
+  if (form.paperNodeId !== undefined) data.set("paperNodeId", form.paperNodeId)
   return data
 }

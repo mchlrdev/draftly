@@ -3,7 +3,8 @@ import "server-only"
 import { HttpError, unprocessable } from "./http"
 import { MAX_HTML_BYTES, type PageInput } from "./store"
 
-/** Reads the multipart page form: `file`, `name`, `display`, `designWidth`. */
+/** Reads the multipart page form: `file`, `name`, `display`, `designWidth`,
+ *  `paperFileId`, `paperNodeId`. */
 export async function readPageForm(req: Request): Promise<PageInput> {
   const length = Number(req.headers.get("content-length") ?? 0)
   if (length > MAX_HTML_BYTES + 64 * 1024)
@@ -26,6 +27,8 @@ export async function readPageForm(req: Request): Promise<PageInput> {
     name: field("name"),
     display: field("display"),
     designWidth: field("designWidth"),
+    paperFileId: field("paperFileId"),
+    paperNodeId: field("paperNodeId"),
   }
   if (file !== null) {
     if (typeof file === "string")

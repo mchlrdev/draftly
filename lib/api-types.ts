@@ -25,6 +25,9 @@ export interface Page {
   name: string
   display: DisplayMode
   designWidth: number
+  /** The Paper file and artboard node the page was made from, if known. */
+  paperFileId: string | null
+  paperNodeId: string | null
   sort: number
   createdAt: string
   updatedAt: string

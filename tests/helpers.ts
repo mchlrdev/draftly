@@ -7,8 +7,11 @@ let ipCounter = 0
 /** An HTTP client with its own cookie jar and its own client IP (x-forwarded-for). */
 export function client() {
   const jar = new Map<string, string>()
+  // Test files share one server and its per-IP limits, so client IPs are
+  // drawn from all of 10.0.0.0/8: a clash between files would mix their counts.
   ipCounter += 1
-  const ip = `10.${Math.floor(Math.random() * 250)}.${Math.floor(ipCounter / 250) % 250}.${(ipCounter % 250) + 1}`
+  const octet = () => Math.floor(Math.random() * 256)
+  const ip = `10.${octet()}.${octet()}.${(ipCounter % 254) + 1}`
 
   async function request(
     path: string,

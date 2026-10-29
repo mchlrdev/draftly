@@ -5,7 +5,7 @@
 export const SKILL_NAME = "paper-to-draftly"
 
 export const SKILL_DESCRIPTION =
-  "Turn Paper artboards into self-contained HTML pages and upload them to a Draftly draft for review. Use when the user wants Paper frames, screens or a whole Paper page on Draftly, or wants to update pages already there."
+  "Turn Paper artboards into self-contained HTML pages and upload them to a Draftly draft for review, and work through the review comments on Draftly. Use when the user wants Paper frames on Draftly, wants to update pages there, or asks what reviewers said and wants the feedback handled."
 
 export function skillMarkdown(origin: string, { frontmatter = false } = {}) {
   const body = `# Paper → Draftly
@@ -35,8 +35,9 @@ Work in a scratch folder, e.g. \`/tmp/draftly-<draft>/\`.
 3. Paper \`get_jsx\` for the artboard with \`includeNodeIds: false\` and the default inline styles. Write the result to \`<slug>.jsx\` **verbatim**: every character, the file header line included. Do not reformat, shorten or "fix" it.
 4. Draftly \`prepare_page_upload\` with \`project\`, \`draft\`, \`name\`, \`display\`, \`designWidth\` (and \`pageId\` to replace). It returns a one-time \`uploadUrl\`, valid 30 minutes.
 5. Run:
-   \`node paper-to-html.mjs <slug>.jsx --tokens tokens.css --out <slug>.html --title "<name>" --upload "<uploadUrl>"\`
+   \`node paper-to-html.mjs <slug>.jsx --tokens tokens.css --out <slug>.html --title "<name>" --paper-node <artboard node id> --upload "<uploadUrl>"\`
    It inlines every image (shrunk with \`sips\` on macOS) and the Google fonts the page uses, checks for leftover URLs and the size limit, then uploads. The last line is the created page as JSON.
+   \`--paper-node\` (and the file id it reads from the \`get_jsx\` header) go into the HTML as \`<meta name="paper:file">\` / \`<meta name="paper:node">\`. Draftly stores them on the page, so later feedback leads straight back to the artboard. Always pass it.
 
 The upload link is a credential for one page. Do not print it to the user, and never put the API token in the shell.
 
@@ -45,6 +46,25 @@ Several artboards: run steps 3 to 5 for each one. If the order matters, finish w
 ## 4. Report
 
 Give the user the draft link and the password from \`get_draft\` (or \`create_draft\`), and the page names you added or replaced. If you replaced pages, mention that existing comments stayed.
+
+## 5. Work through feedback
+
+Reviewers pin comments onto pages. Each thread has a page, a status and x/y in **design pixels from the page's top-left**. For a page made from Paper that is the same coordinate system as its artboard.
+
+1. Draftly \`list_comments\` (default: open threads; \`since\` for only what is new). Pages carry \`paper: { fileId, nodeId }\` when Draftly knows where they came from.
+2. For each thread, find what it points at:
+   - With a Paper link: Paper \`get_screenshot\` of that artboard (\`nodeId\`), and \`get_tree_summary\` / \`get_node_info\` to find the element whose box contains x/y (child positions are relative to the artboard). Look at the region around the pin before you decide.
+   - Without one, or when a rendered view is quicker: Draftly \`get_thread_screenshot\` shows the area around the pin (ringed in red) as the reviewer sees it. \`get_page_screenshot\` renders a slice of a page with all pins numbered; page through with \`top\`. To change the design, match the page name to an artboard (\`get_basic_info\`), or ask the user.
+3. Sum up the feedback for the user first, grouped by page, with what you would change. Change the design only when the user asked you to.
+4. After changing an artboard in Paper, upload it again **replacing** its page (\`pageId\` in \`prepare_page_upload\`, steps 3 to 5): comments stay on the page.
+5. \`reply_to_thread\` saying briefly what changed, then \`set_thread_status\` \`resolved\`. Leave threads open that you did not fully handle, and say why in the reply. Replies show to reviewers live as "<operator> (Agent)", so write as you would to the client: short, German if they wrote German.
+6. \`create_thread\` places your own pin (x/y in design pixels), e.g. to ask the reviewer a question about a spot. Use it sparingly. From a screenshot, design x/y = \`shown.x + px / imageScale\`, \`shown.y + py / imageScale\`.
+
+Pin numbers in \`list_comments\` and the screenshots are the ones reviewers see in the viewer ("Pin 3 on Home").
+
+After an upload, \`get_page_screenshot\` is a quick check that the page looks like the artboard.
+
+Never resolve threads you only read. Never reply to a reviewer without the user knowing what you will say, unless they told you to handle the feedback on your own.
 
 ## When something fails
 

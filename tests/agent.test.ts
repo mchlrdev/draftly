@@ -6,6 +6,7 @@ import {
   client,
   operator,
   pageForm,
+  reviewer,
   setupDraft,
 } from "./helpers"
 
@@ -123,10 +124,17 @@ describe("MCP endpoint", () => {
     expect(tools.result.tools.map((t) => t.name).sort()).toEqual([
       "create_draft",
       "create_project",
+      "create_thread",
       "get_draft",
+      "get_page_screenshot",
+      "get_thread_screenshot",
+      "list_comments",
       "list_projects",
       "prepare_page_upload",
       "reorder_pages",
+      "reply_to_thread",
+      "set_thread_status",
+      "update_page",
       "upload_page",
     ])
 
@@ -297,5 +305,284 @@ describe("agent assets", () => {
       "paper-to-draftly.md"
     )
     expect(await skill.text()).toContain("name: paper-to-draftly")
+  })
+})
+
+const PAPER_HTML = FIXTURE_HTML.replace(
+  "<title>Fixture</title>",
+  '<title>Fixture</title><meta name="paper:file" content="01M587YHKH90P6BJ6TTPFZCXFW"><meta content="1Y7-0" name="paper:node">'
+)
+
+describe("Paper link on pages", () => {
+  it("comes from the HTML's meta tags, the form, or stays empty", async () => {
+    const { op, admin, pageId } = await setupDraft()
+    const page = async (id: string) =>
+      ((await (await op.get(admin)).json()) as Draft).pages.find(
+        (p) => p.id === id
+      )!
+
+    // Pages without it keep working, with no link.
+    expect(await page(pageId)).toMatchObject({
+      paperFileId: null,
+      paperNodeId: null,
+    })
+
+    const fromMeta = (await (
+      await op.request(`${admin}/pages`, {
+        method: "POST",
+        body: pageForm({ html: PAPER_HTML, name: "Meta" }),
+      })
+    ).json()) as Page
+    expect(fromMeta).toMatchObject({
+      paperFileId: "01M587YHKH90P6BJ6TTPFZCXFW",
+      paperNodeId: "1Y7-0",
+    })
+
+    const form = pageForm({ html: FIXTURE_HTML, name: "Form" })
+    form.set("paperFileId", "01ABC")
+    form.set("paperNodeId", "RJ-0")
+    const fromForm = (await (
+      await op.request(`${admin}/pages`, { method: "POST", body: form })
+    ).json()) as Page
+    expect(fromForm).toMatchObject({
+      paperFileId: "01ABC",
+      paperNodeId: "RJ-0",
+    })
+
+    const bad = pageForm({ html: FIXTURE_HTML, name: "Bad" })
+    bad.set("paperNodeId", "nope nope")
+    expect(
+      (await op.request(`${admin}/pages`, { method: "POST", body: bad })).status
+    ).toBe(422)
+
+    // Replacing with HTML that has no meta keeps the link; PATCH "" clears it.
+    const replaced = (await (
+      await op.request(`${admin}/pages/${fromMeta.id}`, {
+        method: "PUT",
+        body: pageForm({ html: FIXTURE_HTML }),
+      })
+    ).json()) as Page
+    expect(replaced.paperNodeId).toBe("1Y7-0")
+    const cleared = (await (
+      await op.patch(`${admin}/pages/${fromMeta.id}`, { paperNodeId: "" })
+    ).json()) as Page
+    expect(cleared).toMatchObject({
+      paperFileId: "01M587YHKH90P6BJ6TTPFZCXFW",
+      paperNodeId: null,
+    })
+  })
+
+  it("travels on upload links and shows in get_draft", async () => {
+    const { token } = await newToken()
+    const { project, draft } = await setupDraft()
+    const { data } = await call<{ uploadUrl: string }>(
+      token,
+      "prepare_page_upload",
+      { project, draft, name: "Home", paperFileId: "01F", paperNodeId: "RJ-0" }
+    )
+    const res = await postFile(data.uploadUrl, FIXTURE_HTML)
+    const created = (await res.json()) as Page
+    expect(created).toMatchObject({ paperFileId: "01F", paperNodeId: "RJ-0" })
+
+    const got = await call<{ pages: { id: string; paper: unknown }[] }>(
+      token,
+      "get_draft",
+      { project, draft }
+    )
+    expect(got.data.pages.find((p) => p.id === created.id)?.paper).toEqual({
+      fileId: "01F",
+      nodeId: "RJ-0",
+    })
+
+    const updated = await call<Page>(token, "update_page", {
+      project,
+      draft,
+      pageId: created.id,
+      paperNodeId: "WK-0",
+    })
+    expect(updated.data.paperNodeId).toBe("WK-0")
+  })
+})
+
+describe("comments for agents", () => {
+  it("lists threads, replies, pins and resolves as the operator's agent", async () => {
+    const { token } = await newToken()
+    const { op, project, draft, pageId, api, password } = await setupDraft()
+    await op.put("/api/admin/settings", { operatorName: "Pascal" })
+    const rev = await reviewer(project, draft, password)
+    const posted = await rev.post(`${api}/threads`, {
+      pageId,
+      x: 120.4,
+      y: 840,
+      body: "Headline zu groß",
+      authorName: "Tanja",
+      clientId: "tanja-1",
+    })
+    const thread = (await posted.json()) as { id: string }
+
+    type Listed = {
+      threads: {
+        id: string
+        page: string
+        x: number
+        status: string
+        comments: { author: string; body: string; byYou: boolean }[]
+      }[]
+      password?: string
+    }
+    const listed = await call<Listed>(token, "list_comments", {
+      project,
+      draft,
+    })
+    expect(listed.data.password).toBeUndefined()
+    expect(listed.data.threads).toEqual([
+      expect.objectContaining({
+        id: thread.id,
+        page: "Start",
+        x: 120,
+        status: "open",
+        comments: [
+          expect.objectContaining({
+            author: "Tanja",
+            body: "Headline zu groß",
+            byYou: false,
+          }),
+        ],
+      }),
+    ])
+
+    const reply = await call<{ author: string }>(token, "reply_to_thread", {
+      project,
+      draft,
+      threadId: thread.id,
+      body: "Ist kleiner, siehe neue Version.",
+    })
+    expect(reply.data.author).toBe("Pascal (Agent)")
+
+    // Reviewers see it like any other comment, without the agent's clientId.
+    const snap = await (await rev.get(api)).text()
+    expect(snap).toContain("Pascal (Agent)")
+    expect(snap).not.toContain("agent:")
+
+    await call(token, "set_thread_status", {
+      project,
+      draft,
+      threadId: thread.id,
+      status: "resolved",
+    })
+    expect(
+      (await call<Listed>(token, "list_comments", { project, draft })).data
+        .threads
+    ).toEqual([])
+    const all = await call<Listed>(token, "list_comments", {
+      project,
+      draft,
+      status: "all",
+    })
+    expect(all.data.threads[0].comments.map((c) => c.byYou)).toEqual([
+      false,
+      true,
+    ])
+
+    const pin = await call<{ status: string; comments: { author: string }[] }>(
+      token,
+      "create_thread",
+      { project, draft, pageId, x: 10, y: 20, body: "Frage zum Bild?" }
+    )
+    expect(pin.data).toMatchObject({
+      status: "open",
+      comments: [{ author: "Pascal (Agent)" }],
+    })
+
+    const since = await call<Listed>(token, "list_comments", {
+      project,
+      draft,
+      status: "all",
+      since: new Date(Date.now() + 60_000).toISOString(),
+    })
+    expect(since.data.threads).toEqual([])
+  })
+})
+
+describe("screenshots for agents", () => {
+  type Shot = {
+    content: (
+      | { type: "image"; data: string; mimeType: string }
+      | { type: "text"; text: string }
+    )[]
+    isError?: boolean
+  }
+  async function shot(token: string, name: string, args: unknown) {
+    const res = await mcp(token, "tools/call", { name, arguments: args })
+    const { result } = (await res.json()) as { result: Shot }
+    const image = result.content.find((c) => c.type === "image")
+    const text = result.content.find((c) => c.type === "text")
+    return {
+      result,
+      image:
+        image && "data" in image ? Buffer.from(image.data, "base64") : null,
+      info:
+        text && "text" in text && !result.isError
+          ? JSON.parse(text.text)
+          : null,
+    }
+  }
+
+  it("render a page slice and the area around a pin, with pins numbered", async () => {
+    const { token } = await newToken()
+    const { project, draft, pageId, api, password } = await setupDraft()
+    const rev = await reviewer(project, draft, password)
+    const posted = await rev.post(`${api}/threads`, {
+      pageId,
+      x: 300,
+      y: 900,
+      body: "Abstand prüfen",
+      authorName: "Tanja",
+      clientId: "tanja-2",
+    })
+    const thread = (await posted.json()) as { id: string }
+
+    const page = await shot(token, "get_page_screenshot", {
+      project,
+      draft,
+      pageId,
+      height: 600,
+    })
+    expect(page.result.isError).toBeFalsy()
+    // JPEG magic bytes.
+    expect(page.image?.subarray(0, 2).toString("hex")).toBe("ffd8")
+    expect(page.info).toMatchObject({
+      page: "Start",
+      shown: { x: 0, y: 0, width: 1440, height: 600 },
+      imageScale: 1,
+      nextTop: 600,
+    })
+    expect(page.info.pageHeight).toBeGreaterThanOrEqual(1200)
+    expect(page.info.pins).toEqual([]) // the pin is below this slice
+
+    const around = await shot(token, "get_thread_screenshot", {
+      project,
+      draft,
+      threadId: thread.id,
+    })
+    expect(around.image?.subarray(0, 2).toString("hex")).toBe("ffd8")
+    // Centred on the pin, pushed up where the page ends.
+    expect(around.info.shown).toEqual({
+      x: 0,
+      y: Math.min(550, around.info.pageHeight - 700),
+      width: 1000,
+      height: 700,
+    })
+    expect(around.info.thread).toMatchObject({ number: 1, x: 300, y: 900 })
+
+    const missing = await shot(token, "get_thread_screenshot", {
+      project,
+      draft,
+      threadId: "nope",
+    })
+    expect(missing.result.isError).toBe(true)
+    expect(JSON.stringify(missing.result.content)).toContain(
+      "Thread nicht gefunden."
+    )
   })
 })

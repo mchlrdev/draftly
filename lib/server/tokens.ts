@@ -113,6 +113,8 @@ export interface TicketTarget {
   name?: string
   display?: string
   designWidth?: number
+  paperFileId?: string
+  paperNodeId?: string
 }
 
 export function createUploadTicket(
@@ -130,7 +132,7 @@ export function createUploadTicket(
   const expiresAt = new Date(Date.now() + TICKET_MINUTES * 60_000).toISOString()
   db()
     .prepare(
-      "INSERT INTO upload_tickets (id, token_id, draft_id, page_id, name, display, design_width, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO upload_tickets (id, token_id, draft_id, page_id, name, display, design_width, paper_file_id, paper_node_id, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .run(
       hashToken(ticket),
@@ -140,6 +142,8 @@ export function createUploadTicket(
       target.name ?? null,
       target.display ?? null,
       target.designWidth ?? null,
+      target.paperFileId ?? null,
+      target.paperNodeId ?? null,
       expiresAt
     )
   // Expired tickets are never consumed; sweep them as new ones are made.
@@ -177,7 +181,8 @@ export function withUploadTicket<T>(
   const id = hashToken(ticket)
   const row = db()
     .prepare(
-      `SELECT t.page_id, t.name, t.display, t.design_width, t.expires_at,
+      `SELECT t.page_id, t.name, t.display, t.design_width, t.paper_file_id,
+        t.paper_node_id, t.expires_at,
         d.slug AS draft_slug, p.slug AS project_slug
        FROM upload_tickets t JOIN drafts d ON d.id = t.draft_id JOIN projects p ON p.id = d.project_id
        WHERE t.id = ?`
@@ -188,6 +193,8 @@ export function withUploadTicket<T>(
         name: string | null
         display: string | null
         design_width: number | null
+        paper_file_id: string | null
+        paper_node_id: string | null
         expires_at: string
         draft_slug: string
         project_slug: string
@@ -202,6 +209,8 @@ export function withUploadTicket<T>(
       name: row.name ?? undefined,
       display: row.display ?? undefined,
       designWidth: row.design_width ?? undefined,
+      paperFileId: row.paper_file_id ?? undefined,
+      paperNodeId: row.paper_node_id ?? undefined,
     },
   })
   db().prepare("DELETE FROM upload_tickets WHERE id = ?").run(id)

@@ -22,6 +22,9 @@ import {
   fileSize,
   findExternalUrls,
   nameFromFilename,
+  PAPER_ID_PATTERN,
+  paperFileIdFromInput,
+  paperFromHtml,
 } from "@/lib/admin/format"
 import {
   DEFAULT_DESIGN_WIDTH,
@@ -35,7 +38,9 @@ import { cn } from "@/lib/utils"
 // is read in the browser first, so a page with http(s) URLs is refused before
 // the upload; the server's own 422 lands in the same place. Files can be
 // picked or dropped on the file block. Picking or dropping several while
-// adding hands them to "Seiten hinzufügen" (onMany).
+// adding hands them to "Seiten hinzufügen" (onMany). The optional Paper file
+// and node link the page back to its artboard for agents; a file from the
+// agent converter fills them from its meta tags.
 
 interface PickedFile {
   file: File
@@ -69,6 +74,8 @@ export function PageFormDialog({
   const [width, setWidth] = useState(
     String(page?.designWidth ?? DEFAULT_DESIGN_WIDTH)
   )
+  const [paperFile, setPaperFile] = useState(page?.paperFileId ?? "")
+  const [paperNode, setPaperNode] = useState(page?.paperNodeId ?? "")
   const [serverError, setServerError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -77,9 +84,24 @@ export function PageFormDialog({
     ? externalUrlMessage(picked.external)
     : null
   const widthError = designWidthProblem(width, display)
+  const paperFileValue = paperFileIdFromInput(paperFile)
+  const paperFileError =
+    paperFileValue && !PAPER_ID_PATTERN.test(paperFileValue)
+      ? "Paper-Link oder Datei-ID, z. B. 01M587YHKH90P6BJ6TTPFZCXFW."
+      : null
+  const paperNodeError =
+    paperNode.trim() && !PAPER_ID_PATTERN.test(paperNode.trim())
+      ? "Node-ID wie 1Y7-0."
+      : null
   const fileProblem = serverError ?? fileError
   const canSubmit =
-    !!picked && !fileError && !widthError && name.trim() !== "" && !pending
+    !!picked &&
+    !fileError &&
+    !widthError &&
+    !paperFileError &&
+    !paperNodeError &&
+    name.trim() !== "" &&
+    !pending
 
   const pick = async (file: File | undefined) => {
     setServerError(null)
@@ -87,6 +109,9 @@ export function PageFormDialog({
     const text = await file.text()
     setPicked({ file, external: findExternalUrls(text) })
     if (!nameTouched) setName(nameFromFilename(file.name))
+    const paper = paperFromHtml(text)
+    if (paper.paperFileId) setPaperFile(paper.paperFileId)
+    if (paper.paperNodeId) setPaperNode(paper.paperNodeId)
   }
 
   const take = (files: File[]) => {
@@ -111,6 +136,8 @@ export function PageFormDialog({
       name: name.trim(),
       display,
       designWidth: designWidthValue(width),
+      paperFileId: paperFileValue,
+      paperNodeId: paperNode.trim(),
     }
     const res = page
       ? await operatorApi.replacePage(projectSlug, draftSlug, page.id, form)
@@ -295,6 +322,29 @@ export function PageFormDialog({
             />
           </InputGroup>
         </div>
+      </div>
+
+      <div className="flex items-start gap-3">
+        <InputGroup className="grow">
+          <InputField
+            index={0}
+            label="Paper-Datei (optional)"
+            placeholder="Link oder Datei-ID"
+            value={paperFile}
+            onChange={setPaperFile}
+            error={paperFileError ?? undefined}
+          />
+        </InputGroup>
+        <InputGroup className="w-35 shrink-0">
+          <InputField
+            index={0}
+            label="Paper-Node"
+            placeholder="z. B. 1Y7-0"
+            value={paperNode}
+            onChange={setPaperNode}
+            error={paperNodeError ?? undefined}
+          />
+        </InputGroup>
       </div>
     </OperatorDialog>
   )

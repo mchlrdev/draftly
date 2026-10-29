@@ -34,9 +34,9 @@ All JSON. Errors are `{ "error": "<German, user-facing message>" }` with the sta
 | GET | `/api/admin/projects/:project/drafts/:draft/password` | — | 200 `{ password: string \| null }` — null for drafts created before the password was stored (rotate once) |
 | POST | `/api/admin/projects/:project/drafts/:draft/rotate` | — | 200 `{ password }`. Ends the draft's open event streams |
 | DELETE | `/api/admin/projects/:project/drafts/:draft` | — | 204. Ends the draft's open event streams |
-| POST | `/api/admin/projects/:project/drafts/:draft/pages` | multipart: `file`, `name`, `display` (`fixed`\|`fill`), `designWidth` (default 1440) | 201 `Page`. Contains `http:`/`https:` → 422 |
+| POST | `/api/admin/projects/:project/drafts/:draft/pages` | multipart: `file`, `name`, `display` (`fixed`\|`fill`), `designWidth` (default 1440), optional `paperFileId`, `paperNodeId` (else from `<meta name="paper:file\|node">` in the HTML) | 201 `Page`. Contains `http:`/`https:` → 422 |
 | PUT | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | multipart: `file` (+ optional `name`, `display`, `designWidth`) | 200 `Page` — same id, threads kept |
-| PATCH | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | `{ name?, display?, designWidth? }` | 200 `Page` |
+| PATCH | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | `{ name?, display?, designWidth?, paperFileId?, paperNodeId? }` ("" clears a Paper id) | 200 `Page` |
 | PUT | `/api/admin/projects/:project/drafts/:draft/pages` | `{ order: pageId[] }` | 200 `Page[]` |
 | DELETE | `/api/admin/projects/:project/drafts/:draft/pages/:pageId` | — | 204, threads deleted (one `thread.deleted` event each) |
 
@@ -83,7 +83,7 @@ Rate limits key on the client IP = the **last** `X-Forwarded-For` entry (appende
 | POST | `/api/agent/upload/:ticket` | the ticket | Multipart as the operator upload (`file`, optional `name`, `display`, `designWidth` overriding the link's). New page → 201 `Page`; replace → 200 `Page`. Unknown, expired or spent → 401. A 4xx from validation does not spend the link |
 | GET | `/agent/paper-to-html.mjs` | public | The converter script (static file) |
 
-MCP tools: `list_projects`, `create_project`, `create_draft`, `get_draft` (link, password, pages), `prepare_page_upload` (→ `uploadUrl`, 30 min), `upload_page` (inline HTML, small pages only), `reorder_pages`. Prompt and resource: `paper-to-draftly` (`draftly://skill/paper-to-draftly`). Domain errors come back as tool results with `isError` and the German message. Links use `DRAFTLY_PUBLIC_ORIGIN`, else the request's host.
+MCP tools: `list_projects`, `create_project`, `create_draft`, `get_draft` (link, password, pages with their Paper link), `prepare_page_upload` (→ `uploadUrl`, 30 min), `upload_page` (inline HTML, small pages only), `update_page`, `reorder_pages`; comments: `list_comments` (status, page, since), `reply_to_thread`, `create_thread`, `set_thread_status` — written as "<operator> (Agent)"; screenshots: `get_page_screenshot` (slice by `top`/`height`, pins `open`\|`all`\|`none`), `get_thread_screenshot` (area around a pin) → JPEG image content plus JSON (`shown`, `imageScale`, `pageHeight`, pins with viewer numbers). Prompt and resource: `paper-to-draftly` (`draftly://skill/paper-to-draftly`). Domain errors come back as tool results with `isError` and the German message. Links use `DRAFTLY_PUBLIC_ORIGIN`, else the request's host.
 
 ## Pages (UI routes)
 
